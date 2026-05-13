@@ -41,11 +41,11 @@ const aiSalesSummaryPrompt = ai.definePrompt({
 Summarize the following daily sales data for {{date}}. Provide a concise overview, highlighting key performance indicators, top-selling items, and any noticeable trends or anomalies.
 
 Sales Date: {{{date}}}
-Total Sales Amount: ${{totalSalesAmount}}
+Total Sales Amount: \${{{totalSalesAmount}}}
 
 Products Sold:
 {{#each soldProducts}}
-- Product: {{{productName}}}, Quantity Sold: {{quantitySold}}, Total Price: ${{totalPrice}}
+- Product: {{{productName}}}, Quantity Sold: {{quantitySold}}, Total Price: \${{{totalPrice}}}
 {{/each}}
 
 Focus on providing insights that a sales manager would find useful for quick understanding of the day's performance.`,
