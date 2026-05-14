@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { db, Product } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Edit2, Trash2, Search } from "lucide-react"
+import { Plus, Edit2, Trash2, Search, TrendingUp } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,7 +18,7 @@ export default function ProductsPage() {
   const { toast } = useToast()
 
   // Form State
-  const [formData, setFormData] = useState({ name: "", price: "", quantity: "" })
+  const [formData, setFormData] = useState({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
 
   useEffect(() => {
     loadProducts()
@@ -29,14 +29,15 @@ export default function ProductsPage() {
   }
 
   const handleSave = () => {
-    if (!formData.name || !formData.price || !formData.quantity) {
+    if (!formData.name || !formData.purchasePrice || !formData.sellingPrice || !formData.quantity) {
       toast({ title: "Incomplete form", description: "Please fill all fields.", variant: "destructive" })
       return
     }
 
     const payload = {
       name: formData.name,
-      price: parseFloat(formData.price),
+      purchasePrice: parseFloat(formData.purchasePrice),
+      sellingPrice: parseFloat(formData.sellingPrice),
       quantity: parseInt(formData.quantity)
     }
 
@@ -62,7 +63,7 @@ export default function ProductsPage() {
   }
 
   const resetForm = () => {
-    setFormData({ name: "", price: "", quantity: "" })
+    setFormData({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
     setEditingProduct(null)
   }
 
@@ -70,7 +71,8 @@ export default function ProductsPage() {
     setEditingProduct(product)
     setFormData({
       name: product.name,
-      price: product.price.toString(),
+      purchasePrice: (product.purchasePrice || 0).toString(),
+      sellingPrice: (product.sellingPrice || product.price || 0).toString(),
       quantity: product.quantity.toString()
     })
     setIsModalOpen(true)
@@ -85,7 +87,7 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">Products</h1>
-          <p className="text-muted-foreground">Manage your inventory and pricing.</p>
+          <p className="text-muted-foreground">Manage your inventory, costs, and pricing.</p>
         </div>
         <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) resetForm() }}>
           <DialogTrigger asChild>
@@ -109,26 +111,44 @@ export default function ProductsPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="price">Price ($)</Label>
+                  <Label htmlFor="purchasePrice">Purchase Price ($)</Label>
                   <Input 
-                    id="price" 
+                    id="purchasePrice" 
                     type="number" 
-                    value={formData.price} 
-                    onChange={(e) => setFormData({...formData, price: e.target.value})} 
-                    placeholder="0.00"
+                    value={formData.purchasePrice} 
+                    onChange={(e) => setFormData({...formData, purchasePrice: e.target.value})} 
+                    placeholder="Cost price"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="quantity">Stock Quantity</Label>
+                  <Label htmlFor="sellingPrice">Selling Price ($)</Label>
                   <Input 
-                    id="quantity" 
+                    id="sellingPrice" 
                     type="number" 
-                    value={formData.quantity} 
-                    onChange={(e) => setFormData({...formData, quantity: e.target.value})} 
-                    placeholder="0"
+                    value={formData.sellingPrice} 
+                    onChange={(e) => setFormData({...formData, sellingPrice: e.target.value})} 
+                    placeholder="Sale price"
                   />
                 </div>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor="quantity">Stock Quantity</Label>
+                <Input 
+                  id="quantity" 
+                  type="number" 
+                  value={formData.quantity} 
+                  onChange={(e) => setFormData({...formData, quantity: e.target.value})} 
+                  placeholder="0"
+                />
+              </div>
+              {formData.purchasePrice && formData.sellingPrice && (
+                <div className="p-3 bg-green-50 rounded-lg flex items-center justify-between border border-green-100">
+                  <span className="text-sm text-green-700 font-medium">Estimated profit per unit:</span>
+                  <span className="text-lg font-bold text-green-700">
+                    ${(parseFloat(formData.sellingPrice) - parseFloat(formData.purchasePrice)).toFixed(2)}
+                  </span>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancel</Button>
@@ -152,36 +172,51 @@ export default function ProductsPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[400px]">Product Name</TableHead>
-              <TableHead>Price</TableHead>
+              <TableHead className="w-[300px]">Product Name</TableHead>
+              <TableHead>Purchase Price</TableHead>
+              <TableHead>Selling Price</TableHead>
+              <TableHead>Expected Profit</TableHead>
               <TableHead>Stock</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredProducts.length > 0 ? (
-              filteredProducts.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>${product.price.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.quantity < 10 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                      {product.quantity} units
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
-                      <Edit2 className="h-4 w-4 text-blue-600" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                      <Trash2 className="h-4 w-4 text-red-600" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredProducts.map((product) => {
+                const purchasePrice = product.purchasePrice || 0;
+                const sellingPrice = product.sellingPrice || product.price || 0;
+                const profit = sellingPrice - purchasePrice;
+                
+                return (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="text-muted-foreground">${purchasePrice.toFixed(2)}</TableCell>
+                    <TableCell className="font-semibold text-primary">${sellingPrice.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1 text-green-600 font-medium">
+                        <TrendingUp className="h-3 w-3" />
+                        ${profit.toFixed(2)}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.quantity < 10 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {product.quantity} units
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
+                        <Edit2 className="h-4 w-4 text-blue-600" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                        <Trash2 className="h-4 w-4 text-red-600" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                   No products found. Add some to get started!
                 </TableCell>
               </TableRow>

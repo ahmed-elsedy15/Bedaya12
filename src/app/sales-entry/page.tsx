@@ -24,7 +24,7 @@ export default function SalesEntryPage() {
 
   const loadData = () => {
     setProducts(db.getProducts().filter(p => p.quantity > 0))
-    setRecentSales(db.getSales().slice(0, 5))
+    setRecentSales(db.getSales().slice(0, 10))
   }
 
   const handleSale = () => {
@@ -41,7 +41,7 @@ export default function SalesEntryPage() {
 
     try {
       db.recordSale(selectedProductId, qty)
-      toast({ title: "Sale Recorded", description: "Stock updated automatically." })
+      toast({ title: "Sale Recorded", description: "Stock and profits updated." })
       loadData()
       setSelectedProductId("")
       setQuantity("1")
@@ -51,6 +51,7 @@ export default function SalesEntryPage() {
   }
 
   const selectedProduct = products.find(p => p.id === selectedProductId)
+  const displayPrice = selectedProduct ? (selectedProduct.sellingPrice || selectedProduct.price || 0) : 0;
 
   return (
     <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -76,11 +77,14 @@ export default function SalesEntryPage() {
                   <SelectValue placeholder="Search products..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map(p => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} - ${p.price.toFixed(2)} ({p.quantity} available)
-                    </SelectItem>
-                  ))}
+                  {products.map(p => {
+                    const price = p.sellingPrice || p.price || 0;
+                    return (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} - ${price.toFixed(2)} ({p.quantity} available)
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -99,7 +103,7 @@ export default function SalesEntryPage() {
               <div className="grid gap-2">
                 <Label>Total Price</Label>
                 <div className="h-10 px-3 py-2 rounded-md bg-muted flex items-center font-bold text-primary">
-                  ${selectedProduct ? (selectedProduct.price * (parseInt(quantity) || 0)).toFixed(2) : "0.00"}
+                  ${(displayPrice * (parseInt(quantity) || 0)).toFixed(2)}
                 </div>
               </div>
             </div>
@@ -120,17 +124,19 @@ export default function SalesEntryPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>Product</TableHead>
-                  <TableHead>Quantity</TableHead>
+                  <TableHead>Qty</TableHead>
                   <TableHead>Total</TableHead>
+                  <TableHead>Profit</TableHead>
                   <TableHead>Time</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recentSales.map(sale => (
                   <TableRow key={sale.id}>
-                    <TableCell>{sale.productName}</TableCell>
+                    <TableCell className="font-medium">{sale.productName}</TableCell>
                     <TableCell>{sale.quantitySold}</TableCell>
                     <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-green-600 font-semibold">+${(sale.profit || 0).toFixed(2)}</TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {new Date(sale.timestamp).toLocaleTimeString()}
                     </TableCell>
@@ -138,7 +144,7 @@ export default function SalesEntryPage() {
                 ))}
                 {recentSales.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">No recent sales.</TableCell>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">No recent sales.</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -150,12 +156,12 @@ export default function SalesEntryPage() {
       <div className="space-y-6">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader>
-            <CardTitle className="text-lg">Tips</CardTitle>
+            <CardTitle className="text-lg">Financial Tips</CardTitle>
           </CardHeader>
           <CardContent className="text-sm opacity-90 space-y-2">
+            <p>• Profit is calculated as: (Selling Price - Purchase Price) × Quantity.</p>
             <p>• Stock levels update immediately after every sale.</p>
-            <p>• Products with zero stock are automatically hidden from this list.</p>
-            <p>• You can view detailed history in the Reports section.</p>
+            <p>• Ensure your purchase prices are accurate for better reporting.</p>
           </CardContent>
         </Card>
       </div>

@@ -1,7 +1,9 @@
 export interface Product {
   id: string;
   name: string;
-  price: number;
+  purchasePrice: number;
+  sellingPrice: number;
+  price: number; // سنبقي عليه للتوافق مع الكود الحالي ولكنه سيساوي سعر البيع
   quantity: number;
   createdAt: number;
 }
@@ -11,7 +13,10 @@ export interface Sale {
   productId: string;
   productName: string;
   quantitySold: number;
+  purchasePriceAtSale: number; // سعر الشراء وقت البيع لحساب الربح بدقة
+  sellingPriceAtSale: number;  // سعر البيع وقت البيع
   totalPrice: number;
+  profit: number;
   date: string; // ISO String (YYYY-MM-DD)
   timestamp: number;
 }
@@ -42,10 +47,11 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
   },
 
-  addProduct: (product: Omit<Product, 'id' | 'createdAt'>) => {
+  addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
     const products = db.getProducts();
     const newProduct: Product = {
       ...product,
+      price: product.sellingPrice,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
@@ -55,7 +61,16 @@ export const db = {
 
   updateProduct: (id: string, updates: Partial<Product>) => {
     const products = db.getProducts();
-    const updated = products.map((p) => (p.id === id ? { ...p, ...updates } : p));
+    const updated = products.map((p) => {
+      if (p.id === id) {
+        const merged = { ...p, ...updates };
+        if (updates.sellingPrice !== undefined) {
+          merged.price = updates.sellingPrice;
+        }
+        return merged;
+      }
+      return p;
+    });
     db.saveProducts(updated);
   },
 
@@ -72,6 +87,12 @@ export const db = {
     // Update Product Stock
     db.updateProduct(productId, { quantity: product.quantity - quantity });
 
+    const sellingPrice = product.sellingPrice;
+    const purchasePrice = product.purchasePrice;
+    const totalPrice = sellingPrice * quantity;
+    const totalPurchaseCost = purchasePrice * quantity;
+    const profit = totalPrice - totalPurchaseCost;
+
     // Record Sale
     const sales = db.getSales();
     const newSale: Sale = {
@@ -79,7 +100,10 @@ export const db = {
       productId,
       productName: product.name,
       quantitySold: quantity,
-      totalPrice: product.price * quantity,
+      purchasePriceAtSale: purchasePrice,
+      sellingPriceAtSale: sellingPrice,
+      totalPrice,
+      profit,
       date: new Date().toISOString().split('T')[0],
       timestamp: Date.now(),
     };

@@ -47,10 +47,10 @@ export function AppSidebar() {
       <SidebarHeader className="h-16 flex items-center px-6 border-b">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-            S
+            B
           </div>
           <span className="font-headline font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
-            SaleSphere
+            Bedaya
           </span>
         </div>
       </SidebarHeader>
