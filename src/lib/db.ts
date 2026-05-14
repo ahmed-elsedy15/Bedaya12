@@ -35,6 +35,27 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+// وظيفة لحساب الربح بأمان حتى للعمليات القديمة
+export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
+  // إذا كان الربح مسجلاً بالفعل وهو رقم صحيح، نستخدمه
+  if (typeof sale.profit === 'number' && sale.profit !== 0) return sale.profit;
+  
+  // إذا كانت أسعار البيع والشراء وقت العملية موجودة، نحسب منها
+  if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
+    return (sale.sellingPriceAtSale - sale.purchasePriceAtSale) * sale.quantitySold;
+  }
+
+  // كخيار أخير للعمليات القديمة جداً، نبحث عن المنتج الحالي ونستخدم أسعاره
+  const product = products.find(p => p.id === sale.productId);
+  if (product) {
+    const sell = product.sellingPrice || product.price || 0;
+    const buy = product.purchasePrice || 0;
+    return (sell - buy) * sale.quantitySold;
+  }
+
+  return 0;
+};
+
 export const db = {
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];

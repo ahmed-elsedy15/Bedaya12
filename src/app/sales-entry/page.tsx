@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { db, Product, Sale } from "@/lib/db"
+import { db, Product, Sale, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +23,8 @@ export default function SalesEntryPage() {
   }, [])
 
   const loadData = () => {
-    setProducts(db.getProducts().filter(p => p.quantity > 0))
+    const allProducts = db.getProducts();
+    setProducts(allProducts.filter(p => p.quantity > 0))
     setRecentSales(db.getSales().slice(0, 10))
   }
 
@@ -131,17 +132,25 @@ export default function SalesEntryPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentSales.map(sale => (
-                  <TableRow key={sale.id}>
-                    <TableCell className="font-medium">{sale.productName}</TableCell>
-                    <TableCell>{sale.quantitySold}</TableCell>
-                    <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
-                    <TableCell className="text-green-600 font-semibold">+${(sale.profit || 0).toFixed(2)}</TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {new Date(sale.timestamp).toLocaleTimeString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {recentSales.map(sale => {
+                  // جلب قائمة المنتجات لحساب الربح للعمليات القديمة إذا لزم الأمر
+                  const allProducts = db.getProducts();
+                  const calculatedProfit = getSafeSaleProfit(sale, allProducts);
+                  
+                  return (
+                    <TableRow key={sale.id}>
+                      <TableCell className="font-medium">{sale.productName}</TableCell>
+                      <TableCell>{sale.quantitySold}</TableCell>
+                      <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-green-600 font-semibold">
+                        +${calculatedProfit.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs">
+                        {new Date(sale.timestamp).toLocaleTimeString()}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
                 {recentSales.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">No recent sales.</TableCell>

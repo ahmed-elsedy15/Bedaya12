@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { db, Product, Sale, getLocalDateString } from "@/lib/db"
+import { db, Product, Sale, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar } from "lucide-react"
 
@@ -22,26 +22,14 @@ export default function Dashboard() {
     const today = getLocalDateString();
     const currentMonthPrefix = today.substring(0, 7) // YYYY-MM
     
-    // وظيفة لحساب الربح بأمان حتى لو البيانات قديمة
-    const getSafeProfit = (s: Sale) => {
-      if (typeof s.profit === 'number') return s.profit;
-      
-      // إذا كان الربح غير موجود، نحاول حسابه من الأسعار المسجلة عند البيع
-      const sell = Number(s.sellingPriceAtSale || 0);
-      const buy = Number(s.purchasePriceAtSale || 0);
-      if (sell > 0) return (sell - buy) * s.quantitySold;
-      
-      return 0;
-    }
-
     // حساب إحصائيات اليوم
     const salesToday = sales.filter(s => s.date === today)
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
-    const profitToday = salesToday.reduce((sum, s) => sum + getSafeProfit(s), 0)
+    const profitToday = salesToday.reduce((sum, s) => sum + getSafeSaleProfit(s, products), 0)
 
     // حساب أرباح الشهر
     const salesMonth = sales.filter(s => s.date && s.date.startsWith(currentMonthPrefix))
-    const profitMonth = salesMonth.reduce((sum, s) => sum + getSafeProfit(s), 0)
+    const profitMonth = salesMonth.reduce((sum, s) => sum + getSafeSaleProfit(s, products), 0)
     
     // حساب المنتج الأكثر مبيعاً
     const productSoldCounts: Record<string, number> = {}
