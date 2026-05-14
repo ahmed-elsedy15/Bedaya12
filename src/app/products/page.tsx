@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -142,9 +143,9 @@ export default function ProductsPage() {
                 />
               </div>
               {formData.purchasePrice && formData.sellingPrice && (
-                <div className="p-3 bg-green-50 rounded-lg flex items-center justify-between border border-green-100">
-                  <span className="text-sm text-green-700 font-medium">Estimated profit per unit:</span>
-                  <span className="text-lg font-bold text-green-700">
+                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg flex items-center justify-between border border-green-100 dark:border-green-900">
+                  <span className="text-sm text-green-700 dark:text-green-400 font-medium">Estimated profit per unit:</span>
+                  <span className="text-lg font-bold text-green-700 dark:text-green-400">
                     ${(parseFloat(formData.sellingPrice) - parseFloat(formData.purchasePrice)).toFixed(2)}
                   </span>
                 </div>
@@ -168,7 +169,7 @@ export default function ProductsPage() {
         />
       </div>
 
-      <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -193,22 +194,22 @@ export default function ProductsPage() {
                     <TableCell className="text-muted-foreground">${purchasePrice.toFixed(2)}</TableCell>
                     <TableCell className="font-semibold text-primary">${sellingPrice.toFixed(2)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1 text-green-600 font-medium">
+                      <div className="flex items-center gap-1 text-green-600 dark:text-green-400 font-medium">
                         <TrendingUp className="h-3 w-3" />
                         ${profit.toFixed(2)}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.quantity < 10 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${product.quantity < 10 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'}`}>
                         {product.quantity} units
                       </span>
                     </TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
-                        <Edit2 className="h-4 w-4 text-blue-600" />
+                        <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </Button>
                       <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
+                        <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
                     </TableCell>
                   </TableRow>

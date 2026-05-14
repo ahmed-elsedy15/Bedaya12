@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -97,25 +98,25 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-md bg-green-50/50">
+        <Card className="border-none shadow-md bg-green-50/50 dark:bg-green-900/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-green-700">صافي ربح اليوم</CardTitle>
-            <BarChart2 className="w-4 h-4 text-green-600" />
+            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">صافي ربح اليوم</CardTitle>
+            <BarChart2 className="w-4 h-4 text-green-600 dark:text-green-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-700">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-xs text-green-600/80">ربح مبيعات اليوم</p>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
+            <p className="text-xs text-green-600/80 dark:text-green-400/80">ربح مبيعات اليوم</p>
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-md bg-blue-50/50">
+        <Card className="border-none shadow-md bg-blue-50/50 dark:bg-blue-900/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-blue-700">صافي ربح الشهر</CardTitle>
-            <Calendar className="w-4 h-4 text-blue-600" />
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">صافي ربح الشهر</CardTitle>
+            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-700">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-xs text-blue-600/80">إجمالي أرباح هذا الشهر</p>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.profitMonth.toFixed(2)}</div>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80">إجمالي أرباح هذا الشهر</p>
           </CardContent>
         </Card>
 

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -55,13 +56,13 @@ export default function ReportsPage() {
           <p className="text-muted-foreground">Track performance and analyze sales data.</p>
         </div>
         
-        <div className="flex items-center gap-3 bg-white p-2 rounded-lg border shadow-sm">
+        <div className="flex items-center gap-3 bg-card p-2 rounded-lg border shadow-sm">
           <CalendarIcon className="h-4 w-4 text-primary ml-2" />
           <Label htmlFor="date" className="sr-only">Select Date</Label>
           <Input 
             type="date" 
             id="date" 
-            className="border-none shadow-none focus-visible:ring-0 w-[160px]"
+            className="border-none shadow-none focus-visible:ring-0 w-[160px] bg-transparent"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
           />
@@ -117,7 +118,7 @@ export default function ReportsPage() {
         </div>
 
         <div className="space-y-6">
-          <Card className="border-none shadow-lg bg-gradient-to-br from-slate-50 to-blue-50">
+          <Card className="border-none shadow-lg bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-900/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-primary">
                 <Sparkles className="h-5 w-5 text-accent fill-accent" />
@@ -127,7 +128,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {summary ? (
-                <div className="p-4 bg-white rounded-lg border border-accent/20 text-sm leading-relaxed text-slate-700 animate-in fade-in slide-in-from-top-2">
+                <div className="p-4 bg-card rounded-lg border border-accent/20 text-sm leading-relaxed animate-in fade-in slide-in-from-top-2">
                   {summary}
                 </div>
               ) : (
@@ -137,7 +138,7 @@ export default function ReportsPage() {
               )}
               
               <Button 
-                className="w-full bg-primary hover:bg-primary/90" 
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
                 disabled={sales.length === 0 || isSummarizing}
                 onClick={handleAISummary}
               >

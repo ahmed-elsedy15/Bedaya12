@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
@@ -120,7 +121,7 @@ export default function SalesEntryPage() {
             <History className="h-5 w-5 text-primary" />
             Recent Sales
           </h2>
-          <div className="rounded-xl border bg-white shadow-sm overflow-hidden">
+          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -142,7 +143,7 @@ export default function SalesEntryPage() {
                       <TableCell className="font-medium">{sale.productName}</TableCell>
                       <TableCell>{sale.quantitySold}</TableCell>
                       <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-green-600 font-semibold">
+                      <TableCell className="text-green-600 dark:text-green-400 font-semibold">
                         +${calculatedProfit.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
