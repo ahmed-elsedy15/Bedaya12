@@ -1,9 +1,11 @@
+
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3 } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -15,6 +17,8 @@ import {
 } from "@/components/ui/sidebar"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useTheme } from "next-themes"
+import { Button } from "@/components/ui/button"
 
 const items = [
   {
@@ -41,6 +45,7 @@ const items = [
 
 export function AppSidebar() {
   const pathname = usePathname()
+  const { theme, setTheme } = useTheme()
 
   return (
     <Sidebar collapsible="icon">
@@ -50,7 +55,7 @@ export function AppSidebar() {
             B
           </div>
           <span className="font-headline font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
-            Bedaya
+            SaleSphere
           </span>
         </div>
       </SidebarHeader>
@@ -73,6 +78,19 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-4 border-t">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              tooltip="Toggle Theme"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
