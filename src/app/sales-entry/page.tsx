@@ -2,22 +2,26 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { db, Product, Sale, getSafeSaleProfit } from "@/lib/db"
+import { db, Product, Sale, getSafeSaleProfit, Customer } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History } from "lucide-react"
+import { ShoppingCart, History, User, Wallet } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 export default function SalesEntryPage() {
   const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
+  const [customers, setCustomers] = useState<Customer[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
+  const [selectedCustomerId, setSelectedCustomerId] = useState("")
+  const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const { toast } = useToast()
 
@@ -28,12 +32,18 @@ export default function SalesEntryPage() {
   const loadData = () => {
     const allProducts = db.getProducts();
     setProducts(allProducts.filter(p => p.quantity > 0))
+    setCustomers(db.getCustomers())
     setRecentSales(db.getSales().slice(0, 10))
   }
 
   const handleSale = () => {
     if (!selectedProductId || !quantity) {
       toast({ title: t.error, description: "Select a product and quantity.", variant: "destructive" })
+      return
+    }
+
+    if (paymentType === 'credit' && !selectedCustomerId) {
+      toast({ title: t.error, description: "Please select a customer for credit sales.", variant: "destructive" })
       return
     }
 
@@ -44,10 +54,12 @@ export default function SalesEntryPage() {
     }
 
     try {
-      db.recordSale(selectedProductId, qty)
+      db.recordSale(selectedProductId, qty, paymentType, selectedCustomerId || undefined)
       toast({ title: t.saleRecorded, description: "Success." })
       loadData()
       setSelectedProductId("")
+      setSelectedCustomerId("")
+      setPaymentType('cash')
       setQuantity("1")
     } catch (err: any) {
       toast({ title: t.saleFailed, description: err.message === 'Insufficient stock' ? t.insufficientStock : err.message, variant: "destructive" })
@@ -93,6 +105,43 @@ export default function SalesEntryPage() {
               </Select>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>{t.customer} (Optional for Cash)</Label>
+                <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={t.searchCustomers} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map(c => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} ({c.phone})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>{t.paymentType}</Label>
+                <RadioGroup 
+                  defaultValue="cash" 
+                  value={paymentType} 
+                  onValueChange={(val) => setPaymentType(val as any)}
+                  className="flex gap-4 p-2 bg-muted rounded-md"
+                >
+                  <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    <RadioGroupItem value="cash" id="cash" />
+                    <Label htmlFor="cash" className="cursor-pointer">{t.cash}</Label>
+                  </div>
+                  <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                    <RadioGroupItem value="credit" id="credit" />
+                    <Label htmlFor="credit" className="cursor-pointer">{t.credit}</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="qty">{t.quantity}</Label>
@@ -128,34 +177,33 @@ export default function SalesEntryPage() {
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead>{t.product}</TableHead>
+                  <TableHead>{t.customer}</TableHead>
                   <TableHead>{t.qty}</TableHead>
                   <TableHead>{t.totalPrice}</TableHead>
-                  <TableHead>{t.profit}</TableHead>
+                  <TableHead>{t.paymentType}</TableHead>
                   <TableHead>{t.time}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentSales.map(sale => {
-                  const allProducts = db.getProducts();
-                  const calculatedProfit = getSafeSaleProfit(sale, allProducts);
-                  
-                  return (
-                    <TableRow key={sale.id}>
-                      <TableCell className="font-medium">{sale.productName}</TableCell>
-                      <TableCell>{sale.quantitySold}</TableCell>
-                      <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-green-600 dark:text-green-400 font-semibold">
-                        +${calculatedProfit.toFixed(2)}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {recentSales.map(sale => (
+                  <TableRow key={sale.id}>
+                    <TableCell className="font-medium">{sale.productName}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{sale.customerName || '-'}</TableCell>
+                    <TableCell>{sale.quantitySold}</TableCell>
+                    <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${sale.paymentType === 'credit' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                        {sale.paymentType === 'credit' ? t.credit : t.cash}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </TableCell>
+                  </TableRow>
+                ))}
                 {recentSales.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">{t.noData}</TableCell>
+                    <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">{t.noData}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -173,6 +221,7 @@ export default function SalesEntryPage() {
             <p>• {t.tip1}</p>
             <p>• {t.tip2}</p>
             <p>• {t.tip3}</p>
+            <p>• تسجيل المبيعات الآجلة (Credit) يضيف تلقائياً مبلغ المديونية لحساب العميل.</p>
           </CardContent>
         </Card>
       </div>

@@ -8,6 +8,14 @@ export interface Product {
   createdAt: number;
 }
 
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  totalDebt: number;
+  createdAt: number;
+}
+
 export interface Sale {
   id: string;
   productId: string;
@@ -19,14 +27,17 @@ export interface Sale {
   profit: number;
   date: string;
   timestamp: number;
+  customerId?: string;
+  customerName?: string;
+  paymentType: 'cash' | 'credit';
 }
 
 const STORAGE_KEYS = {
   PRODUCTS: 'salesphere_products',
   SALES: 'salesphere_sales',
+  CUSTOMERS: 'salesphere_customers',
 };
 
-// وظيفة مساعدة للحصول على تاريخ اليوم بالتوقيت المحلي (YYYY-MM-DD)
 export const getLocalDateString = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -35,24 +46,17 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// وظيفة لحساب الربح بأمان حتى للعمليات القديمة
 export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
-  // إذا كان الربح مسجلاً بالفعل وهو رقم صحيح، نستخدمه
   if (typeof sale.profit === 'number' && sale.profit !== 0) return sale.profit;
-  
-  // إذا كانت أسعار البيع والشراء وقت العملية موجودة، نحسب منها
   if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
     return (sale.sellingPriceAtSale - sale.purchasePriceAtSale) * sale.quantitySold;
   }
-
-  // كخيار أخير للعمليات القديمة جداً، نبحث عن المنتج الحالي ونستخدم أسعاره
   const product = products.find(p => p.id === sale.productId);
   if (product) {
     const sell = product.sellingPrice || product.price || 0;
     const buy = product.purchasePrice || 0;
     return (sell - buy) * sale.quantitySold;
   }
-
   return 0;
 };
 
@@ -75,6 +79,16 @@ export const db = {
 
   saveSales: (sales: Sale[]) => {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
+  },
+
+  getCustomers: (): Customer[] => {
+    if (typeof window === 'undefined') return [];
+    const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+    return stored ? JSON.parse(stored) : [];
+  },
+
+  saveCustomers: (customers: Customer[]) => {
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -109,7 +123,30 @@ export const db = {
     db.saveProducts(products.filter((p) => p.id !== id));
   },
 
-  recordSale: (productId: string, quantity: number) => {
+  addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'totalDebt'>) => {
+    const customers = db.getCustomers();
+    const newCustomer: Customer = {
+      ...customer,
+      id: crypto.randomUUID(),
+      totalDebt: 0,
+      createdAt: Date.now(),
+    };
+    db.saveCustomers([newCustomer, ...customers]);
+    return newCustomer;
+  },
+
+  updateCustomerDebt: (id: string, amount: number) => {
+    const customers = db.getCustomers();
+    const updated = customers.map(c => {
+      if (c.id === id) {
+        return { ...c, totalDebt: c.totalDebt + amount };
+      }
+      return c;
+    });
+    db.saveCustomers(updated);
+  },
+
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string) => {
     const products = db.getProducts();
     const product = products.find((p) => p.id === productId);
     if (!product || product.quantity < quantity) throw new Error('Insufficient stock');
@@ -121,6 +158,18 @@ export const db = {
     const profit = totalPrice - totalPurchaseCost;
 
     db.updateProduct(productId, { quantity: product.quantity - quantity });
+
+    let customerName = undefined;
+    if (customerId) {
+      const customers = db.getCustomers();
+      const customer = customers.find(c => c.id === customerId);
+      if (customer) {
+        customerName = customer.name;
+        if (paymentType === 'credit') {
+          db.updateCustomerDebt(customerId, totalPrice);
+        }
+      }
+    }
 
     const sales = db.getSales();
     const newSale: Sale = {
@@ -134,6 +183,9 @@ export const db = {
       profit,
       date: getLocalDateString(),
       timestamp: Date.now(),
+      customerId,
+      customerName,
+      paymentType,
     };
     db.saveSales([newSale, ...sales]);
     return newSale;

@@ -1,4 +1,4 @@
-# **App Name**: SaleSphere
+# **App Name**: Bedaya
 
 ## Core Features:
 
