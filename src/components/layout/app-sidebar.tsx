@@ -1,7 +1,7 @@
 
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, LogIn, LogOut } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -20,16 +20,28 @@ import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { useTranslation } from "@/context/language-context"
+import { useAuth } from "@/context/auth-context"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { db } from "@/lib/db"
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { lang, setLang, t, dir } = useTranslation()
+  const { user, loginWithGoogle, logout, loading } = useAuth()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    if (user) {
+      localStorage.setItem('salesphere_uid', user.uid)
+      db.pullFromCloud(user.uid).then(() => {
+        // Force refresh data if needed or trigger event
+      })
+    } else {
+      localStorage.removeItem('salesphere_uid')
+    }
+  }, [user])
 
   const items = [
     {
@@ -63,14 +75,17 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" side={dir === "rtl" ? "right" : "left"}>
-      <SidebarHeader className="h-16 flex items-center px-6 border-b">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-            B
+      <SidebarHeader className="h-20 flex items-center px-6 border-b">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-lg">
+            S
           </div>
-          <span className="font-headline font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
-            Bedaya
-          </span>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <span className="font-headline font-bold text-lg tracking-tight">
+              SaleSphere
+            </span>
+            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Enterprise</span>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -92,8 +107,32 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t space-y-1">
+      <SidebarFooter className="p-4 border-t space-y-2">
         <SidebarMenu>
+          {user ? (
+            <SidebarMenuItem>
+              <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-muted/50 rounded-lg group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent">
+                <Avatar className="h-8 w-8 border-2 border-primary/20">
+                  <AvatarImage src={user.photoURL || ""} />
+                  <AvatarFallback>{user.displayName?.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
+                  <span className="text-xs font-bold truncate">{user.displayName}</span>
+                  <button onClick={logout} className="text-[10px] text-destructive font-medium flex items-center gap-1 hover:underline">
+                    <LogOut className="h-3 w-3" /> {t.lang === 'ar' ? 'خروج' : 'Logout'}
+                  </button>
+                </div>
+              </div>
+            </SidebarMenuItem>
+          ) : (
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={loginWithGoogle} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <LogIn className="h-4 w-4" />
+                <span>{t.lang === 'ar' ? 'دخول بجوجل' : 'Login with Google'}</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={() => setLang(lang === "en" ? "ar" : "en")}

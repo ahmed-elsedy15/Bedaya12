@@ -1,3 +1,9 @@
+
+"use client"
+
+import { db_firestore } from './firebase';
+import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
+
 export interface Product {
   id: string;
   name: string;
@@ -60,6 +66,19 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
+// Syncing with Firestore for persistent storage
+const syncToCloud = async (key: string, data: any) => {
+  if (typeof window === 'undefined') return;
+  const userId = localStorage.getItem('salesphere_uid');
+  if (userId) {
+    try {
+      await setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data });
+    } catch (e) {
+      console.error("Cloud sync failed", e);
+    }
+  }
+};
+
 export const db = {
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
@@ -69,6 +88,7 @@ export const db = {
 
   saveProducts: (products: Product[]) => {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    syncToCloud('products', products);
   },
 
   getSales: (): Sale[] => {
@@ -79,6 +99,7 @@ export const db = {
 
   saveSales: (sales: Sale[]) => {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
+    syncToCloud('sales', sales);
   },
 
   getCustomers: (): Customer[] => {
@@ -89,6 +110,7 @@ export const db = {
 
   saveCustomers: (customers: Customer[]) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+    syncToCloud('customers', customers);
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -190,4 +212,16 @@ export const db = {
     db.saveSales([newSale, ...sales]);
     return newSale;
   },
+
+  // Logic to load all data from Firestore when user logs in
+  pullFromCloud: async (userId: string) => {
+    const keys = ['products', 'sales', 'customers'];
+    for (const key of keys) {
+      const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
+      if (docSnap.exists()) {
+        const data = docSnap.data().items;
+        localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
+      }
+    }
+  }
 };
