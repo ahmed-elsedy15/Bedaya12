@@ -1,7 +1,7 @@
 
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -19,46 +19,49 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
-
-const items = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-  },
-  {
-    title: "Products",
-    url: "/products",
-    icon: Package,
-  },
-  {
-    title: "Sales Entry",
-    url: "/sales-entry",
-    icon: ShoppingCart,
-  },
-  {
-    title: "Daily Reports",
-    url: "/reports",
-    icon: BarChart3,
-  },
-]
+import { useTranslation } from "@/context/language-context"
 
 export function AppSidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const { lang, setLang, t, dir } = useTranslation()
   const [mounted, setMounted] = useState(false)
 
-  // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  const items = [
+    {
+      title: t.dashboard,
+      url: "/",
+      icon: LayoutDashboard,
+    },
+    {
+      title: t.products,
+      url: "/products",
+      icon: Package,
+    },
+    {
+      title: t.salesEntry,
+      url: "/sales-entry",
+      icon: ShoppingCart,
+    },
+    {
+      title: t.reports,
+      url: "/reports",
+      icon: BarChart3,
+    },
+  ]
+
+  if (!mounted) return null
+
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" side={dir === "rtl" ? "right" : "left"}>
       <SidebarHeader className="h-16 flex items-center px-6 border-b">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
-            B
+            S
           </div>
           <span className="font-headline font-bold text-xl tracking-tight group-data-[collapsible=icon]:hidden">
             SaleSphere
@@ -67,11 +70,11 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Management</SidebarGroupLabel>
+          <SidebarGroupLabel>{t.management}</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
                     <Link href={item.url}>
                       <item.icon />
@@ -84,15 +87,24 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4 border-t">
+      <SidebarFooter className="p-4 border-t space-y-1">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              tooltip="Toggle Theme"
+              onClick={() => setLang(lang === "en" ? "ar" : "en")}
+              tooltip={t.language}
             >
-              {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span>{mounted && theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              <Languages className="h-4 w-4" />
+              <span>{lang === "en" ? "العربية" : "English"}</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              tooltip={t.mode}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>{theme === "dark" ? "Light" : "Dark"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

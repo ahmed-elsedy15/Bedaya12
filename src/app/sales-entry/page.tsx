@@ -9,10 +9,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, CheckCircle2, History } from "lucide-react"
+import { ShoppingCart, History } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useTranslation } from "@/context/language-context"
 
 export default function SalesEntryPage() {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
   const [selectedProductId, setSelectedProductId] = useState("")
@@ -31,24 +33,24 @@ export default function SalesEntryPage() {
 
   const handleSale = () => {
     if (!selectedProductId || !quantity) {
-      toast({ title: "Error", description: "Select a product and quantity.", variant: "destructive" })
+      toast({ title: t.error, description: "Select a product and quantity.", variant: "destructive" })
       return
     }
 
     const qty = parseInt(quantity)
     if (isNaN(qty) || qty <= 0) {
-      toast({ title: "Error", description: "Enter a valid quantity.", variant: "destructive" })
+      toast({ title: t.error, description: "Enter a valid quantity.", variant: "destructive" })
       return
     }
 
     try {
       db.recordSale(selectedProductId, qty)
-      toast({ title: "Sale Recorded", description: "Stock and profits updated." })
+      toast({ title: t.saleRecorded, description: "Success." })
       loadData()
       setSelectedProductId("")
       setQuantity("1")
     } catch (err: any) {
-      toast({ title: "Sale Failed", description: err.message, variant: "destructive" })
+      toast({ title: t.saleFailed, description: err.message === 'Insufficient stock' ? t.insufficientStock : err.message, variant: "destructive" })
     }
   }
 
@@ -59,31 +61,31 @@ export default function SalesEntryPage() {
     <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
       <div className="lg:col-span-2 space-y-8">
         <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">Sale Entry</h1>
-          <p className="text-muted-foreground">Record a new transaction quickly.</p>
+          <h1 className="text-3xl font-headline font-bold text-primary">{t.salesEntry}</h1>
+          <p className="text-muted-foreground">{t.welcome}</p>
         </div>
 
-        <Card className="border-none shadow-lg">
+        <Card className="border-none shadow-lg bg-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5 text-accent" />
-              New Transaction
+              {t.newTransaction}
             </CardTitle>
-            <CardDescription>Fill in the details to complete a sale.</CardDescription>
+            <CardDescription>{t.detailedBreakdown}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-2">
-              <Label>Select Product</Label>
+              <Label>{t.selectProduct}</Label>
               <Select onValueChange={setSelectedProductId} value={selectedProductId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Search products..." />
+                  <SelectValue placeholder={t.searchProducts} />
                 </SelectTrigger>
                 <SelectContent>
                   {products.map(p => {
                     const price = p.sellingPrice || p.price || 0;
                     return (
                       <SelectItem key={p.id} value={p.id}>
-                        {p.name} - ${price.toFixed(2)} ({p.quantity} available)
+                        {p.name} - ${price.toFixed(2)} ({p.quantity} {t.units})
                       </SelectItem>
                     );
                   })}
@@ -93,7 +95,7 @@ export default function SalesEntryPage() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="qty">Quantity Sold</Label>
+                <Label htmlFor="qty">{t.quantity}</Label>
                 <Input 
                   id="qty" 
                   type="number" 
@@ -103,7 +105,7 @@ export default function SalesEntryPage() {
                 />
               </div>
               <div className="grid gap-2">
-                <Label>Total Price</Label>
+                <Label>{t.totalPrice}</Label>
                 <div className="h-10 px-3 py-2 rounded-md bg-muted flex items-center font-bold text-primary">
                   ${(displayPrice * (parseInt(quantity) || 0)).toFixed(2)}
                 </div>
@@ -111,7 +113,7 @@ export default function SalesEntryPage() {
             </div>
 
             <Button className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-6" onClick={handleSale}>
-              Complete Sale
+              {t.completeSale}
             </Button>
           </CardContent>
         </Card>
@@ -119,22 +121,21 @@ export default function SalesEntryPage() {
         <div className="space-y-4">
           <h2 className="text-xl font-headline font-semibold flex items-center gap-2">
             <History className="h-5 w-5 text-primary" />
-            Recent Sales
+            {t.recentSales}
           </h2>
           <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead>Product</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Profit</TableHead>
-                  <TableHead>Time</TableHead>
+                  <TableHead>{t.product}</TableHead>
+                  <TableHead>{t.qty}</TableHead>
+                  <TableHead>{t.totalPrice}</TableHead>
+                  <TableHead>{t.profit}</TableHead>
+                  <TableHead>{t.time}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {recentSales.map(sale => {
-                  // جلب قائمة المنتجات لحساب الربح للعمليات القديمة إذا لزم الأمر
                   const allProducts = db.getProducts();
                   const calculatedProfit = getSafeSaleProfit(sale, allProducts);
                   
@@ -147,14 +148,14 @@ export default function SalesEntryPage() {
                         +${calculatedProfit.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-xs">
-                        {new Date(sale.timestamp).toLocaleTimeString()}
+                        {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </TableCell>
                     </TableRow>
                   );
                 })}
                 {recentSales.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">No recent sales.</TableCell>
+                    <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">{t.noData}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -164,14 +165,14 @@ export default function SalesEntryPage() {
       </div>
 
       <div className="space-y-6">
-        <Card className="bg-primary text-primary-foreground">
+        <Card className="bg-primary text-primary-foreground border-none">
           <CardHeader>
-            <CardTitle className="text-lg">Financial Tips</CardTitle>
+            <CardTitle className="text-lg">{t.tips}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm opacity-90 space-y-2">
-            <p>• Profit is calculated as: (Selling Price - Purchase Price) × Quantity.</p>
-            <p>• Stock levels update immediately after every sale.</p>
-            <p>• Ensure your purchase prices are accurate for better reporting.</p>
+            <p>• {t.tip1}</p>
+            <p>• {t.tip2}</p>
+            <p>• {t.tip3}</p>
           </CardContent>
         </Card>
       </div>
