@@ -27,7 +27,7 @@ const STORAGE_KEYS = {
 };
 
 // وظيفة مساعدة للحصول على تاريخ اليوم بالتوقيت المحلي (YYYY-MM-DD)
-const getLocalDateString = () => {
+export const getLocalDateString = () => {
   const date = new Date();
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -93,13 +93,13 @@ export const db = {
     const product = products.find((p) => p.id === productId);
     if (!product || product.quantity < quantity) throw new Error('Insufficient stock');
 
-    db.updateProduct(productId, { quantity: product.quantity - quantity });
-
     const sellingPrice = Number(product.sellingPrice) || 0;
     const purchasePrice = Number(product.purchasePrice) || 0;
     const totalPrice = sellingPrice * quantity;
     const totalPurchaseCost = purchasePrice * quantity;
     const profit = totalPrice - totalPurchaseCost;
+
+    db.updateProduct(productId, { quantity: product.quantity - quantity });
 
     const sales = db.getSales();
     const newSale: Sale = {

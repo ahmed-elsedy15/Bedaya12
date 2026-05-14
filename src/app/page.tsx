@@ -1,8 +1,7 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
-import { db, Product, Sale } from "@/lib/db"
+import { db, Product, Sale, getLocalDateString } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar } from "lucide-react"
 
@@ -20,22 +19,29 @@ export default function Dashboard() {
     const products = db.getProducts()
     const sales = db.getSales()
     
-    // الحصول على تاريخ اليوم بالتوقيت المحلي ليتطابق مع ما يتم تخزينه
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const today = `${year}-${month}-${day}`;
+    const today = getLocalDateString();
     const currentMonthPrefix = today.substring(0, 7) // YYYY-MM
     
+    // وظيفة لحساب الربح بأمان حتى لو البيانات قديمة
+    const getSafeProfit = (s: Sale) => {
+      if (typeof s.profit === 'number') return s.profit;
+      
+      // إذا كان الربح غير موجود، نحاول حسابه من الأسعار المسجلة عند البيع
+      const sell = Number(s.sellingPriceAtSale || 0);
+      const buy = Number(s.purchasePriceAtSale || 0);
+      if (sell > 0) return (sell - buy) * s.quantitySold;
+      
+      return 0;
+    }
+
     // حساب إحصائيات اليوم
     const salesToday = sales.filter(s => s.date === today)
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
-    const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0)
+    const profitToday = salesToday.reduce((sum, s) => sum + getSafeProfit(s), 0)
 
     // حساب أرباح الشهر
-    const salesMonth = sales.filter(s => s.date.startsWith(currentMonthPrefix))
-    const profitMonth = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0)
+    const salesMonth = sales.filter(s => s.date && s.date.startsWith(currentMonthPrefix))
+    const profitMonth = salesMonth.reduce((sum, s) => sum + getSafeProfit(s), 0)
     
     // حساب المنتج الأكثر مبيعاً
     const productSoldCounts: Record<string, number> = {}
@@ -64,7 +70,7 @@ export default function Dashboard() {
 
   return (
     <div className="p-8 space-y-8">
-      <div>
+      <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-headline font-bold text-primary">لوحة التحكم</h1>
         <p className="text-muted-foreground">أهلاً بك في SaleSphere. إليك ملخص أداء عملك اليوم.</p>
       </div>
