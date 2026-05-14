@@ -18,7 +18,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
-import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react"
 
 const items = [
   {
@@ -46,6 +46,12 @@ const items = [
 export function AppSidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <Sidebar collapsible="icon">
@@ -85,8 +91,8 @@ export function AppSidebar() {
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               tooltip="Toggle Theme"
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              {mounted && theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span>{mounted && theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
