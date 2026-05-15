@@ -33,17 +33,21 @@ export function AppSidebar() {
 
   useEffect(() => {
     setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (!mounted || loading) return;
+
     if (user) {
       localStorage.setItem('salesphere_uid', user.uid)
-      // Trigger cloud pull immediately after login
+      // Trigger cloud pull immediately after login or refresh
       db.pullFromCloud(user.uid);
     } else {
-      // Clear data on logout if it was a guest or to ensure privacy
-      if (mounted) {
-        db.clearLocalData()
-      }
+      // Only clear if we are confirmed to be logged out (user is null and loading finished)
+      // We don't clear if it's a guest session to allow local use
+      // db.clearLocalData() // Optional: uncomment if you want to force clear on logout
     }
-  }, [user, mounted])
+  }, [user, loading, mounted])
 
   const items = [
     {
@@ -120,7 +124,10 @@ export function AppSidebar() {
                 </Avatar>
                 <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                   <span className="text-xs font-bold truncate">{user.displayName}</span>
-                  <button onClick={logout} className="text-[10px] text-destructive font-medium flex items-center gap-1 hover:underline text-left">
+                  <button onClick={() => {
+                    db.clearLocalData();
+                    logout();
+                  }} className="text-[10px] text-destructive font-medium flex items-center gap-1 hover:underline text-left">
                     <LogOut className="h-3 w-3" /> {lang === 'ar' ? 'خروج' : 'Logout'}
                   </button>
                 </div>

@@ -66,24 +66,17 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
-// Syncing with Firestore for persistent storage - Scoped to User UID
 const syncToCloud = async (key: string, data: any) => {
   if (typeof window === 'undefined') return;
   const userId = localStorage.getItem('salesphere_uid');
   if (userId) {
     try {
-      // Use setDoc without await to allow background sync and prevent blocking
       setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data }, { merge: true })
         .catch(e => {
-          if (e.code === 'unavailable') {
-            // Silently handle offline state
-            return;
-          }
+          if (e.code === 'unavailable') return;
           console.error(`Cloud sync failed for ${key}:`, e);
         });
-    } catch (e) {
-      // Catch synchronous errors
-    }
+    } catch (e) {}
   }
 };
 
@@ -138,9 +131,7 @@ export const db = {
     const updated = products.map((p) => {
       if (p.id === id) {
         const merged = { ...p, ...updates };
-        if (updates.sellingPrice !== undefined) {
-          merged.price = updates.sellingPrice;
-        }
+        if (updates.sellingPrice !== undefined) merged.price = updates.sellingPrice;
         return merged;
       }
       return p;
@@ -168,9 +159,7 @@ export const db = {
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
     const updated = customers.map(c => {
-      if (c.id === id) {
-        return { ...c, totalDebt: c.totalDebt + amount };
-      }
+      if (c.id === id) return { ...c, totalDebt: c.totalDebt + amount };
       return c;
     });
     db.saveCustomers(updated);
@@ -184,8 +173,7 @@ export const db = {
     const sellingPrice = Number(product.sellingPrice) || 0;
     const purchasePrice = Number(product.purchasePrice) || 0;
     const totalPrice = sellingPrice * quantity;
-    const totalPurchaseCost = purchasePrice * quantity;
-    const profit = totalPrice - totalPurchaseCost;
+    const profit = (sellingPrice - purchasePrice) * quantity;
 
     db.updateProduct(productId, { quantity: product.quantity - quantity });
 
@@ -195,9 +183,7 @@ export const db = {
       const customer = customers.find(c => c.id === customerId);
       if (customer) {
         customerName = customer.name;
-        if (paymentType === 'credit') {
-          db.updateCustomerDebt(customerId, totalPrice);
-        }
+        if (paymentType === 'credit') db.updateCustomerDebt(customerId, totalPrice);
       }
     }
 
@@ -229,16 +215,17 @@ export const db = {
       try {
         const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
         if (docSnap.exists()) {
-          const data = docSnap.data().items;
-          localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
-          hasChanges = true;
+          const cloudItems = docSnap.data().items;
+          const localItems = JSON.parse(localStorage.getItem(`salesphere_${key}`) || '[]');
+          
+          // Only update and dispatch if there's actually a difference or local is empty
+          if (JSON.stringify(cloudItems) !== JSON.stringify(localItems)) {
+            localStorage.setItem(`salesphere_${key}`, JSON.stringify(cloudItems));
+            hasChanges = true;
+          }
         }
       } catch (e: any) {
-        // Handle offline error silently and use local data
-        if (e.code === 'unavailable' || e.message?.includes('offline')) {
-          console.warn(`System is offline, using local cached data for ${key}.`);
-          continue;
-        }
+        if (e.code === 'unavailable') continue;
         console.error(`Pull failed for ${key}:`, e);
       }
     }
@@ -253,5 +240,6 @@ export const db = {
     localStorage.removeItem(STORAGE_KEYS.SALES);
     localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
     localStorage.removeItem('salesphere_uid');
+    window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
   }
 };
