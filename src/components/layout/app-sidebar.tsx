@@ -36,10 +36,12 @@ export function AppSidebar() {
     if (user) {
       localStorage.setItem('salesphere_uid', user.uid)
       db.pullFromCloud(user.uid).then(() => {
-        // Force refresh data if needed or trigger event
+        // We could emit an event here to refresh UI if needed
+        window.dispatchEvent(new Event('storage'))
       })
     } else {
       localStorage.removeItem('salesphere_uid')
+      db.clearLocalData()
     }
   }, [user])
 
@@ -78,11 +80,11 @@ export function AppSidebar() {
       <SidebarHeader className="h-20 flex items-center px-6 border-b">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-lg">
-            S
+            B
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="font-headline font-bold text-lg tracking-tight">
-              SaleSphere
+              Bedaya
             </span>
             <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Enterprise</span>
           </div>
@@ -118,8 +120,8 @@ export function AppSidebar() {
                 </Avatar>
                 <div className="flex flex-col overflow-hidden group-data-[collapsible=icon]:hidden">
                   <span className="text-xs font-bold truncate">{user.displayName}</span>
-                  <button onClick={logout} className="text-[10px] text-destructive font-medium flex items-center gap-1 hover:underline">
-                    <LogOut className="h-3 w-3" /> {t.lang === 'ar' ? 'خروج' : 'Logout'}
+                  <button onClick={logout} className="text-[10px] text-destructive font-medium flex items-center gap-1 hover:underline text-left">
+                    <LogOut className="h-3 w-3" /> {lang === 'ar' ? 'خروج' : 'Logout'}
                   </button>
                 </div>
               </div>
@@ -128,7 +130,7 @@ export function AppSidebar() {
             <SidebarMenuItem>
               <SidebarMenuButton onClick={loginWithGoogle} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <LogIn className="h-4 w-4" />
-                <span>{t.lang === 'ar' ? 'دخول بجوجل' : 'Login with Google'}</span>
+                <span>{lang === 'ar' ? 'دخول بجوجل' : 'Login with Google'}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}

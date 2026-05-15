@@ -2,7 +2,7 @@
 "use client"
 
 import { db_firestore } from './firebase';
-import { doc, setDoc, getDoc, updateDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 export interface Product {
   id: string;
@@ -66,7 +66,7 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
-// Syncing with Firestore for persistent storage
+// Syncing with Firestore for persistent storage - Scoped to User UID
 const syncToCloud = async (key: string, data: any) => {
   if (typeof window === 'undefined') return;
   const userId = localStorage.getItem('salesphere_uid');
@@ -74,7 +74,7 @@ const syncToCloud = async (key: string, data: any) => {
     try {
       await setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data });
     } catch (e) {
-      console.error("Cloud sync failed", e);
+      // Quietly fail or handle specific sync errors
     }
   }
 };
@@ -213,15 +213,24 @@ export const db = {
     return newSale;
   },
 
-  // Logic to load all data from Firestore when user logs in
   pullFromCloud: async (userId: string) => {
     const keys = ['products', 'sales', 'customers'];
     for (const key of keys) {
-      const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
-      if (docSnap.exists()) {
-        const data = docSnap.data().items;
-        localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
+      try {
+        const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
+        if (docSnap.exists()) {
+          const data = docSnap.data().items;
+          localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
+        }
+      } catch (e) {
+        // Handle cases where user is offline during login or permission denied
       }
     }
+  },
+
+  clearLocalData: () => {
+    localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
+    localStorage.removeItem(STORAGE_KEYS.SALES);
+    localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
   }
 };
