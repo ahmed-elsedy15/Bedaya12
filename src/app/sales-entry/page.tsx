@@ -1,15 +1,15 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
-import { db, Product, Sale, getSafeSaleProfit, Customer } from "@/lib/db"
+import { useEffect, useState, useCallback } from "react"
+import { db, Product, Sale, Customer } from "@/lib/db"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, User, Wallet } from "lucide-react"
+import { ShoppingCart, History } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -25,16 +25,26 @@ export default function SalesEntryPage() {
   const [quantity, setQuantity] = useState("1")
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = () => {
+  const loadData = useCallback(() => {
     const allProducts = db.getProducts();
     setProducts(allProducts.filter(p => p.quantity > 0))
     setCustomers(db.getCustomers())
     setRecentSales(db.getSales().slice(0, 10))
-  }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+    
+    // Listen for cloud sync completion
+    const handleSync = () => loadData();
+    window.addEventListener('cloud-sync-complete', handleSync);
+    window.addEventListener('storage', handleSync);
+    
+    return () => {
+      window.removeEventListener('cloud-sync-complete', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [loadData])
 
   const handleSale = () => {
     if (!selectedProductId || !quantity) {
@@ -67,7 +77,7 @@ export default function SalesEntryPage() {
   }
 
   const selectedProduct = products.find(p => p.id === selectedProductId)
-  const displayPrice = selectedProduct ? (selectedProduct.sellingPrice || selectedProduct.price || 0) : 0;
+  const displayPrice = selectedProduct ? (Number(selectedProduct.sellingPrice) || Number(selectedProduct.price) || 0) : 0;
 
   return (
     <div className="p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -94,7 +104,7 @@ export default function SalesEntryPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {products.map(p => {
-                    const price = p.sellingPrice || p.price || 0;
+                    const price = Number(p.sellingPrice) || Number(p.price) || 0;
                     return (
                       <SelectItem key={p.id} value={p.id}>
                         {p.name} - ${price.toFixed(2)} ({p.quantity} {t.units})
@@ -190,7 +200,7 @@ export default function SalesEntryPage() {
                     <TableCell className="font-medium">{sale.productName}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{sale.customerName || '-'}</TableCell>
                     <TableCell>{sale.quantitySold}</TableCell>
-                    <TableCell>${sale.totalPrice.toFixed(2)}</TableCell>
+                    <TableCell>${(Number(sale.totalPrice) || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${sale.paymentType === 'credit' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                         {sale.paymentType === 'credit' ? t.credit : t.cash}

@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { db, Customer } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -24,13 +24,23 @@ export default function CustomersPage() {
   const [formData, setFormData] = useState({ name: "", phone: "" })
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadCustomers()
+  const loadCustomers = useCallback(() => {
+    setCustomers(db.getCustomers())
   }, [])
 
-  const loadCustomers = () => {
-    setCustomers(db.getCustomers())
-  }
+  useEffect(() => {
+    loadCustomers()
+    
+    // Listen for cloud sync completion or local storage changes
+    const handleSync = () => loadCustomers();
+    window.addEventListener('cloud-sync-complete', handleSync);
+    window.addEventListener('storage', handleSync);
+    
+    return () => {
+      window.removeEventListener('cloud-sync-complete', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [loadCustomers])
 
   const handleSave = () => {
     if (!formData.name || !formData.phone) {
@@ -63,7 +73,7 @@ export default function CustomersPage() {
     c.phone.includes(search)
   )
 
-  const totalDebt = customers.reduce((sum, c) => sum + c.totalDebt, 0)
+  const totalDebt = customers.reduce((sum, c) => sum + (Number(c.totalDebt) || 0), 0)
 
   return (
     <div className="p-8 space-y-8">
@@ -159,7 +169,7 @@ export default function CustomersPage() {
                   </TableCell>
                   <TableCell>
                     <span className={`font-bold ${customer.totalDebt > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
-                      ${customer.totalDebt.toFixed(2)}
+                      ${(Number(customer.totalDebt) || 0).toFixed(2)}
                     </span>
                   </TableCell>
                   <TableCell className={`${t.lang === 'ar' ? 'text-left' : 'text-right'}`}>
@@ -198,7 +208,7 @@ export default function CustomersPage() {
             <div className="grid gap-2">
               <Label>{t.totalDebt}</Label>
               <div className="text-xl font-bold text-red-600">
-                ${selectedCustomer?.totalDebt.toFixed(2)}
+                ${(Number(selectedCustomer?.totalDebt) || 0).toFixed(2)}
               </div>
             </div>
             <div className="grid gap-2">

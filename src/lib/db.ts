@@ -53,14 +53,14 @@ export const getLocalDateString = () => {
 };
 
 export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
-  if (typeof sale.profit === 'number' && sale.profit !== 0) return sale.profit;
+  if (typeof sale.profit === 'number' && sale.profit !== 0) return Number(sale.profit);
   if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
-    return (sale.sellingPriceAtSale - sale.purchasePriceAtSale) * sale.quantitySold;
+    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * sale.quantitySold;
   }
   const product = products.find(p => p.id === sale.productId);
   if (product) {
-    const sell = product.sellingPrice || product.price || 0;
-    const buy = product.purchasePrice || 0;
+    const sell = Number(product.sellingPrice) || Number(product.price) || 0;
+    const buy = Number(product.purchasePrice) || 0;
     return (sell - buy) * sale.quantitySold;
   }
   return 0;
@@ -159,7 +159,7 @@ export const db = {
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
     const updated = customers.map(c => {
-      if (c.id === id) return { ...c, totalDebt: c.totalDebt + amount };
+      if (c.id === id) return { ...c, totalDebt: (Number(c.totalDebt) || 0) + amount };
       return c;
     });
     db.saveCustomers(updated);
@@ -218,7 +218,6 @@ export const db = {
           const cloudItems = docSnap.data().items;
           const localItems = JSON.parse(localStorage.getItem(`salesphere_${key}`) || '[]');
           
-          // Only update and dispatch if there's actually a difference or local is empty
           if (JSON.stringify(cloudItems) !== JSON.stringify(localItems)) {
             localStorage.setItem(`salesphere_${key}`, JSON.stringify(cloudItems));
             hasChanges = true;
