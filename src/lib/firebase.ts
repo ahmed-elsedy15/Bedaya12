@@ -19,7 +19,7 @@ const auth = getAuth(app);
 const db_firestore = getFirestore(app);
 const googleProvider = new GoogleAuthProvider();
 
-// إعداد لغة تسجيل الدخول لتكون مطابقة للغة المتصفح
-auth.languageCode = 'it'; 
+// جعل اللغة تلقائية بناءً على المتصفح
+auth.useDeviceLanguage();
 
 export { auth, db_firestore, googleProvider };
