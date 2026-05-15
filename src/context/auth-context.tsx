@@ -32,11 +32,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
+      // تجاهل الخطأ إذا قام المستخدم بإغلاق النافذة بنفسه
+      if (error.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+      
       console.error("Login failed", error);
       if (error.code === 'auth/auth-domain-config-required' || error.code === 'auth/invalid-api-key') {
         toast({
           title: "Firebase Configuration Needed",
-          description: "Please set up your Firebase environment variables in .env file to enable Google Login.",
+          description: "Please set up your Firebase environment variables to enable Google Login.",
           variant: "destructive"
         });
       } else {
