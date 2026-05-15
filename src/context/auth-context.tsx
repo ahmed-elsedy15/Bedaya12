@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 type AuthContextType = {
   user: User | null;
   loading: boolean;
+  signingIn: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -18,52 +19,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
+    // مراقبة حالة المستخدم بشكل مستمر
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
+      setLoading(false);
+      setSigningIn(false);
+    }, (error) => {
+      console.error("Auth state change error:", error);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   const loginWithGoogle = async () => {
+    if (signingIn) return;
+    
+    setSigningIn(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      // محاولة تسجيل الدخول
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user) {
+        toast({
+          title: "تم تسجيل الدخول",
+          description: `أهلاً بك ${result.user.displayName}`,
+        });
+      }
     } catch (error: any) {
+      setSigningIn(false);
+      
       // تجاهل الخطأ إذا قام المستخدم بإغلاق النافذة بنفسه
       if (error.code === 'auth/popup-closed-by-user') {
         return;
       }
       
       console.error("Login failed", error);
-      if (error.code === 'auth/auth-domain-config-required' || error.code === 'auth/invalid-api-key') {
-        toast({
-          title: "Firebase Configuration Needed",
-          description: "Please set up your Firebase environment variables to enable Google Login.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Login Error",
-          description: error.message || "An unexpected error occurred during login.",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "خطأ في تسجيل الدخول",
+        description: "تأكد من إتاحة النوافذ المنبثقة (Popups) في متصفحك أو حاول مرة أخرى.",
+        variant: "destructive"
+      });
     }
   };
 
   const logout = async () => {
     try {
       await signOut(auth);
+      toast({
+        title: "تم تسجيل الخروج",
+        description: "تم مسح الجلسة بنجاح.",
+      });
     } catch (error) {
       console.error("Logout failed", error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, loading, signingIn, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

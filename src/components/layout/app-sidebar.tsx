@@ -1,7 +1,7 @@
 
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, LogIn, LogOut } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, LogIn, LogOut, Loader2 } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -28,7 +28,7 @@ export function AppSidebar() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { lang, setLang, t, dir } = useTranslation()
-  const { user, loginWithGoogle, logout, loading } = useAuth()
+  const { user, loginWithGoogle, logout, loading, signingIn } = useAuth()
   const [mounted, setMounted] = useState(false)
   const lastUidRef = useRef<string | null>(null)
 
@@ -43,7 +43,6 @@ export function AppSidebar() {
       const currentUid = user.uid;
       localStorage.setItem('salesphere_uid', currentUid)
       
-      // نقوم بالسحب من السحاب فقط عند تغيير المستخدم أو التحميل الأول
       if (lastUidRef.current !== currentUid) {
         db.pullFromCloud(currentUid);
         lastUidRef.current = currentUid;
@@ -119,7 +118,13 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-4 border-t space-y-2">
         <SidebarMenu>
-          {user ? (
+          {loading ? (
+            <SidebarMenuItem>
+              <div className="flex items-center justify-center py-2">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              </div>
+            </SidebarMenuItem>
+          ) : user ? (
             <SidebarMenuItem>
               <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-muted/50 rounded-lg group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:bg-transparent">
                 <Avatar className="h-8 w-8 border-2 border-primary/20">
@@ -139,9 +144,17 @@ export function AppSidebar() {
             </SidebarMenuItem>
           ) : (
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={loginWithGoogle} disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                <LogIn className="h-4 w-4" />
-                <span>{lang === 'ar' ? 'دخول بجوجل' : 'Login with Google'}</span>
+              <SidebarMenuButton 
+                onClick={loginWithGoogle} 
+                disabled={signingIn} 
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                {signingIn ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <LogIn className="h-4 w-4" />
+                )}
+                <span>{signingIn ? (lang === 'ar' ? 'جاري الدخول...' : 'Signing in...') : (lang === 'ar' ? 'دخول بجوجل' : 'Login with Google')}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
