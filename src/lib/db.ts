@@ -66,17 +66,21 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
-const syncToCloud = async (key: string, data: any) => {
+const syncToCloud = (key: string, data: any) => {
   if (typeof window === 'undefined') return;
   const userId = localStorage.getItem('salesphere_uid');
   if (userId) {
-    try {
-      setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data }, { merge: true })
-        .catch(e => {
-          if (e.code === 'unavailable') return;
-          console.error(`Cloud sync failed for ${key}:`, e);
-        });
-    } catch (e) {}
+    // نستخدم setDoc بدون await لضمان سرعة الواجهة، مع معالجة الخطأ في الخلفية
+    setDoc(doc(db_firestore, 'users', userId, 'data', key), { 
+      items: data,
+      lastUpdated: Date.now() 
+    }, { merge: true })
+    .catch(e => {
+      // تجاهل أخطاء الشبكة المؤقتة
+      if (e.code !== 'unavailable') {
+        console.warn(`Background sync failed for ${key}, will retry later.`);
+      }
+    });
   }
 };
 
@@ -215,23 +219,27 @@ export const db = {
       try {
         const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
         if (docSnap.exists()) {
-          const cloudItems = docSnap.data().items;
-          const localItems = JSON.parse(localStorage.getItem(`salesphere_${key}`) || '[]');
+          const cloudItems = docSnap.data().items || [];
+          const localItemsRaw = localStorage.getItem(`salesphere_${key}`);
+          const localItems = localItemsRaw ? JSON.parse(localItemsRaw) : [];
           
-          if (JSON.stringify(cloudItems) !== JSON.stringify(localItems)) {
-            localStorage.setItem(`salesphere_${key}`, JSON.stringify(cloudItems));
-            hasChanges = true;
+          // مزامنة ذكية: لا نستبدل إلا إذا كانت هناك بيانات فعلية في السحاب ومختلفة عن المحلي
+          if (cloudItems.length > 0 || localItems.length === 0) {
+            if (JSON.stringify(cloudItems) !== JSON.stringify(localItems)) {
+              localStorage.setItem(`salesphere_${key}`, JSON.stringify(cloudItems));
+              hasChanges = true;
+            }
           }
         }
       } catch (e: any) {
-        if (e.code === 'unavailable') continue;
-        console.error(`Pull failed for ${key}:`, e);
+        if (e.code !== 'unavailable') {
+          console.warn(`Pull failed for ${key}, using local data.`);
+        }
       }
     }
     
-    if (hasChanges) {
-      window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
-    }
+    // نطلق الحدث دائماً عند اكتمال المحاولة لضمان تحديث الواجهة
+    window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
   },
 
   clearLocalData: () => {

@@ -18,7 +18,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useTranslation } from "@/context/language-context"
 import { useAuth } from "@/context/auth-context"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -30,6 +30,7 @@ export function AppSidebar() {
   const { lang, setLang, t, dir } = useTranslation()
   const { user, loginWithGoogle, logout, loading } = useAuth()
   const [mounted, setMounted] = useState(false)
+  const lastUidRef = useRef<string | null>(null)
 
   useEffect(() => {
     setMounted(true)
@@ -39,13 +40,16 @@ export function AppSidebar() {
     if (!mounted || loading) return;
 
     if (user) {
-      localStorage.setItem('salesphere_uid', user.uid)
-      // Trigger cloud pull immediately after login or refresh
-      db.pullFromCloud(user.uid);
+      const currentUid = user.uid;
+      localStorage.setItem('salesphere_uid', currentUid)
+      
+      // نقوم بالسحب من السحاب فقط عند تغيير المستخدم أو التحميل الأول
+      if (lastUidRef.current !== currentUid) {
+        db.pullFromCloud(currentUid);
+        lastUidRef.current = currentUid;
+      }
     } else {
-      // Only clear if we are confirmed to be logged out (user is null and loading finished)
-      // We don't clear if it's a guest session to allow local use
-      // db.clearLocalData() // Optional: uncomment if you want to force clear on logout
+      lastUidRef.current = null;
     }
   }, [user, loading, mounted])
 
