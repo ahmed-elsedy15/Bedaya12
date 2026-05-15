@@ -72,9 +72,17 @@ const syncToCloud = async (key: string, data: any) => {
   const userId = localStorage.getItem('salesphere_uid');
   if (userId) {
     try {
-      await setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data });
+      // Use setDoc without await to allow background sync and prevent blocking
+      setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data }, { merge: true })
+        .catch(e => {
+          if (e.code === 'unavailable') {
+            // Silently handle offline state
+            return;
+          }
+          console.error(`Cloud sync failed for ${key}:`, e);
+        });
     } catch (e) {
-      console.error(`Sync failed for ${key}:`, e);
+      // Catch synchronous errors
     }
   }
 };
@@ -216,6 +224,7 @@ export const db = {
   pullFromCloud: async (userId: string) => {
     const keys = ['products', 'sales', 'customers'];
     let hasChanges = false;
+    
     for (const key of keys) {
       try {
         const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
@@ -224,12 +233,17 @@ export const db = {
           localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
           hasChanges = true;
         }
-      } catch (e) {
+      } catch (e: any) {
+        // Handle offline error silently and use local data
+        if (e.code === 'unavailable' || e.message?.includes('offline')) {
+          console.warn(`System is offline, using local cached data for ${key}.`);
+          continue;
+        }
         console.error(`Pull failed for ${key}:`, e);
       }
     }
+    
     if (hasChanges) {
-      // Trigger a storage event for components to refresh
       window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
     }
   },
