@@ -1,10 +1,9 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
 import { db, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar } from "lucide-react"
+import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
 
 export default function Dashboard() {
@@ -15,7 +14,8 @@ export default function Dashboard() {
     bestSeller: "None",
     revenueToday: 0,
     profitToday: 0,
-    profitMonth: 0
+    profitMonth: 0,
+    revenueMonth: 0
   })
 
   const loadStats = () => {
@@ -31,6 +31,7 @@ export default function Dashboard() {
 
     const salesMonth = sales.filter(s => s.date && s.date.startsWith(currentMonthPrefix))
     const profitMonth = salesMonth.reduce((sum, s) => sum + getSafeSaleProfit(s, products), 0)
+    const revenueMonth = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
     
     const productSoldCounts: Record<string, number> = {}
     sales.forEach(s => {
@@ -52,6 +53,7 @@ export default function Dashboard() {
       revenueToday,
       profitToday,
       profitMonth,
+      revenueMonth,
       bestSeller
     })
   }
@@ -119,6 +121,17 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
             <p className="text-xs text-green-600/80 dark:text-green-400/80">{t.salesProfit}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-md bg-blue-50/50 dark:bg-blue-900/10">
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">{t.monthRevenue}</CardTitle>
+            <CreditCard className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.revenueMonth.toFixed(2)}</div>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80">{t.totalMonthRevenue}</p>
           </CardContent>
         </Card>
 
