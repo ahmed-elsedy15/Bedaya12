@@ -18,7 +18,7 @@ export default function Dashboard() {
     profitMonth: 0
   })
 
-  useEffect(() => {
+  const loadStats = () => {
     const products = db.getProducts()
     const sales = db.getSales()
     
@@ -54,6 +54,20 @@ export default function Dashboard() {
       profitMonth,
       bestSeller
     })
+  }
+
+  useEffect(() => {
+    loadStats()
+    
+    // Listen for cloud sync completion
+    const handleSync = () => loadStats();
+    window.addEventListener('cloud-sync-complete', handleSync);
+    window.addEventListener('storage', handleSync);
+    
+    return () => {
+      window.removeEventListener('cloud-sync-complete', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
   }, [])
 
   return (

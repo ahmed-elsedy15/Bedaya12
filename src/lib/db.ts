@@ -74,7 +74,7 @@ const syncToCloud = async (key: string, data: any) => {
     try {
       await setDoc(doc(db_firestore, 'users', userId, 'data', key), { items: data });
     } catch (e) {
-      // Quietly fail or handle specific sync errors
+      console.error(`Sync failed for ${key}:`, e);
     }
   }
 };
@@ -215,16 +215,22 @@ export const db = {
 
   pullFromCloud: async (userId: string) => {
     const keys = ['products', 'sales', 'customers'];
+    let hasChanges = false;
     for (const key of keys) {
       try {
         const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
         if (docSnap.exists()) {
           const data = docSnap.data().items;
           localStorage.setItem(`salesphere_${key}`, JSON.stringify(data));
+          hasChanges = true;
         }
       } catch (e) {
-        // Handle cases where user is offline during login or permission denied
+        console.error(`Pull failed for ${key}:`, e);
       }
+    }
+    if (hasChanges) {
+      // Trigger a storage event for components to refresh
+      window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
     }
   },
 
@@ -232,5 +238,6 @@ export const db = {
     localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
     localStorage.removeItem(STORAGE_KEYS.SALES);
     localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
+    localStorage.removeItem('salesphere_uid');
   }
 };

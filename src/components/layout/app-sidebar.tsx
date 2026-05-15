@@ -35,15 +35,15 @@ export function AppSidebar() {
     setMounted(true)
     if (user) {
       localStorage.setItem('salesphere_uid', user.uid)
-      db.pullFromCloud(user.uid).then(() => {
-        // We could emit an event here to refresh UI if needed
-        window.dispatchEvent(new Event('storage'))
-      })
+      // Trigger cloud pull immediately after login
+      db.pullFromCloud(user.uid);
     } else {
-      localStorage.removeItem('salesphere_uid')
-      db.clearLocalData()
+      // Clear data on logout if it was a guest or to ensure privacy
+      if (mounted) {
+        db.clearLocalData()
+      }
     }
-  }, [user])
+  }, [user, mounted])
 
   const items = [
     {

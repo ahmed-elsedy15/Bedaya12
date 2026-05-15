@@ -22,13 +22,22 @@ export default function ProductsPage() {
 
   const [formData, setFormData] = useState({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
 
-  useEffect(() => {
-    loadProducts()
-  }, [])
-
   const loadProducts = () => {
     setProducts(db.getProducts())
   }
+
+  useEffect(() => {
+    loadProducts()
+    
+    const handleSync = () => loadProducts();
+    window.addEventListener('cloud-sync-complete', handleSync);
+    window.addEventListener('storage', handleSync);
+    
+    return () => {
+      window.removeEventListener('cloud-sync-complete', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, [])
 
   const handleSave = () => {
     if (!formData.name || !formData.purchasePrice || !formData.sellingPrice || !formData.quantity) {
