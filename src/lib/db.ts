@@ -1,9 +1,6 @@
 
 "use client"
 
-import { db_firestore } from './firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-
 export interface Product {
   id: string;
   name: string;
@@ -66,24 +63,6 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
-const syncToCloud = (key: string, data: any) => {
-  if (typeof window === 'undefined') return;
-  const userId = localStorage.getItem('salesphere_uid');
-  if (userId) {
-    // نستخدم setDoc بدون await لضمان سرعة الواجهة، مع معالجة الخطأ في الخلفية
-    setDoc(doc(db_firestore, 'users', userId, 'data', key), { 
-      items: data,
-      lastUpdated: Date.now() 
-    }, { merge: true })
-    .catch(e => {
-      // تجاهل أخطاء الشبكة المؤقتة
-      if (e.code !== 'unavailable') {
-        console.warn(`Background sync failed for ${key}, will retry later.`);
-      }
-    });
-  }
-};
-
 export const db = {
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
@@ -93,7 +72,7 @@ export const db = {
 
   saveProducts: (products: Product[]) => {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-    syncToCloud('products', products);
+    window.dispatchEvent(new CustomEvent('storage'));
   },
 
   getSales: (): Sale[] => {
@@ -104,7 +83,7 @@ export const db = {
 
   saveSales: (sales: Sale[]) => {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
-    syncToCloud('sales', sales);
+    window.dispatchEvent(new CustomEvent('storage'));
   },
 
   getCustomers: (): Customer[] => {
@@ -115,7 +94,7 @@ export const db = {
 
   saveCustomers: (customers: Customer[]) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
-    syncToCloud('customers', customers);
+    window.dispatchEvent(new CustomEvent('storage'));
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -211,42 +190,10 @@ export const db = {
     return newSale;
   },
 
-  pullFromCloud: async (userId: string) => {
-    const keys = ['products', 'sales', 'customers'];
-    let hasChanges = false;
-    
-    for (const key of keys) {
-      try {
-        const docSnap = await getDoc(doc(db_firestore, 'users', userId, 'data', key));
-        if (docSnap.exists()) {
-          const cloudItems = docSnap.data().items || [];
-          const localItemsRaw = localStorage.getItem(`salesphere_${key}`);
-          const localItems = localItemsRaw ? JSON.parse(localItemsRaw) : [];
-          
-          // مزامنة ذكية: لا نستبدل إلا إذا كانت هناك بيانات فعلية في السحاب ومختلفة عن المحلي
-          if (cloudItems.length > 0 || localItems.length === 0) {
-            if (JSON.stringify(cloudItems) !== JSON.stringify(localItems)) {
-              localStorage.setItem(`salesphere_${key}`, JSON.stringify(cloudItems));
-              hasChanges = true;
-            }
-          }
-        }
-      } catch (e: any) {
-        if (e.code !== 'unavailable') {
-          console.warn(`Pull failed for ${key}, using local data.`);
-        }
-      }
-    }
-    
-    // نطلق الحدث دائماً عند اكتمال المحاولة لضمان تحديث الواجهة
-    window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
-  },
-
   clearLocalData: () => {
     localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
     localStorage.removeItem(STORAGE_KEYS.SALES);
     localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
-    localStorage.removeItem('salesphere_uid');
-    window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
+    window.dispatchEvent(new CustomEvent('storage'));
   }
 };

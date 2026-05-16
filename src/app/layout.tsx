@@ -6,7 +6,6 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { Toaster } from '@/components/ui/toaster';
 import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/context/language-context';
-import { AuthProvider } from '@/context/auth-context';
 
 export const metadata: Metadata = {
   title: 'SaleSphere | Sales Management',
@@ -33,16 +32,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
-            <AuthProvider>
-              <SidebarProvider>
-                <AppSidebar />
-                <SidebarInset>
-                  <div className="flex flex-col min-h-screen">
-                    {children}
-                  </div>
-                </SidebarInset>
-              </SidebarProvider>
-            </AuthProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <SidebarInset>
+                <div className="flex flex-col min-h-screen">
+                  {children}
+                </div>
+              </SidebarInset>
+            </SidebarProvider>
           </LanguageProvider>
           <Toaster />
         </ThemeProvider>
