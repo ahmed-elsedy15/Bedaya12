@@ -22,6 +22,7 @@ export default function ReportsPage() {
   const [isSummarizing, setIsSummarizing] = useState(false)
 
   const loadSales = useCallback(() => {
+    // استخدام التاريخ المختار أو تاريخ اليوم بتنسيق محلي آمن للهيدرة
     const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
     const allSales = db.getSales()
     const filtered = allSales.filter(s => s.date === dateToLoad)
@@ -71,8 +72,10 @@ export default function ReportsPage() {
 
   const handleReturn = (saleId: string) => {
     if (confirm(t.confirmReturn)) {
-      if (db.returnSale(saleId)) {
+      const success = db.returnSale(saleId);
+      if (success) {
         toast({ title: t.success, description: t.saleReturned })
+        // تحديث يدوي فوري للحالة لضمان استجابة الواجهة
         loadSales();
       }
     }
@@ -80,8 +83,10 @@ export default function ReportsPage() {
 
   const handleDelete = (saleId: string) => {
     if (confirm(t.deleteConfirm)) {
-      if (db.deleteSale(saleId)) {
+      const success = db.deleteSale(saleId);
+      if (success) {
         toast({ title: t.success, description: "تم حذف السجل بنجاح" })
+        // تحديث يدوي فوري للحالة لضمان استجابة الواجهة
         loadSales();
       }
     }
