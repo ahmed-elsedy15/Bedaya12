@@ -83,6 +83,10 @@ export const translations = {
     amountToPay: "Amount to Pay",
     allCustomers: "All Customers",
     topDebtors: "Top Debtors",
+    storageStatus: "Storage Status",
+    localOnly: "Local Storage (On this device)",
+    storageWarning: "Data is saved only in this browser. Clearing browser data will delete it.",
+    exportData: "Export Backup",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -168,6 +172,10 @@ export const translations = {
     amountToPay: "المبلغ المراد سداده",
     allCustomers: "جميع العملاء",
     topDebtors: "كبار المدينين",
+    storageStatus: "حالة التخزين",
+    localOnly: "تخزين محلي (على هذا الجهاز)",
+    storageWarning: "البيانات محفوظة فقط في هذا المتصفح. مسح بيانات المتصفح سيؤدي لحذفها.",
+    exportData: "تصدير نسخة احتياطية",
   }
 };
 

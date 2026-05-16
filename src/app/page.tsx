@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react"
 import { db, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard } from "lucide-react"
+import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard, HardDrive, Info, Download } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
+import { Button } from "@/components/ui/button"
 
 export default function Dashboard() {
   const { t } = useTranslation()
@@ -58,25 +59,58 @@ export default function Dashboard() {
     })
   }
 
+  const handleExportData = () => {
+    const products = db.getProducts();
+    const sales = db.getSales();
+    const customers = db.getCustomers();
+    
+    const data = {
+      products,
+      sales,
+      customers,
+      exportedAt: new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `salesphere_backup_${getLocalDateString()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   useEffect(() => {
     loadStats()
     
-    // Listen for cloud sync completion
-    const handleSync = () => loadStats();
-    window.addEventListener('cloud-sync-complete', handleSync);
-    window.addEventListener('storage', handleSync);
-    
+    window.addEventListener('storage', loadStats);
     return () => {
-      window.removeEventListener('cloud-sync-complete', handleSync);
-      window.removeEventListener('storage', handleSync);
+      window.removeEventListener('storage', loadStats);
     };
   }, [])
 
   return (
     <div className="p-8 space-y-8">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-headline font-bold text-primary">{t.dashboard}</h1>
-        <p className="text-muted-foreground">{t.welcome}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-3xl font-headline font-bold text-primary">{t.dashboard}</h1>
+          <p className="text-muted-foreground">{t.welcome}</p>
+        </div>
+        
+        <Card className="border-none shadow-sm bg-blue-50/50 dark:bg-blue-900/10 max-w-xs">
+          <CardContent className="p-4 flex items-center gap-3">
+            <HardDrive className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <div>
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-400">{t.storageStatus}</p>
+              <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80">{t.localOnly}</p>
+            </div>
+            <Button variant="ghost" size="icon" className="ml-auto" onClick={handleExportData} title={t.exportData}>
+              <Download className="w-4 h-4" />
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -156,6 +190,14 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground">{t.topProduct}</p>
           </CardContent>
         </Card>
+      </div>
+
+      <div className="p-4 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-100 dark:border-amber-900/40 flex items-start gap-3">
+        <Info className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="text-sm text-amber-800 dark:text-amber-200">
+          <p className="font-bold">{t.storageStatus}: {t.localOnly}</p>
+          <p className="opacity-80">{t.storageWarning}</p>
+        </div>
       </div>
     </div>
   )
