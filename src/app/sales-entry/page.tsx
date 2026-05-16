@@ -6,9 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, Search, Check, RotateCcw } from "lucide-react"
+import { ShoppingCart, History, Search, Check, RotateCcw, User } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -26,8 +25,12 @@ export default function SalesEntryPage() {
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const [discount, setDiscount] = useState("0")
+  
+  // Search states
   const [productSearch, setProductSearch] = useState("")
+  const [customerSearch, setCustomerSearch] = useState("")
   const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false)
+  const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false)
   
   const { toast } = useToast()
 
@@ -42,11 +45,11 @@ export default function SalesEntryPage() {
     loadData()
     
     const handleSync = () => loadData();
-    window.addEventListener('cloud-sync-complete', handleSync);
+    window.addEventListener('salesphere-db-updated', handleSync);
     window.addEventListener('storage', handleSync);
     
     return () => {
-      window.removeEventListener('cloud-sync-complete', handleSync);
+      window.removeEventListener('salesphere-db-updated', handleSync);
       window.removeEventListener('storage', handleSync);
     };
   }, [loadData])
@@ -57,7 +60,16 @@ export default function SalesEntryPage() {
     )
   }, [products, productSearch])
 
+  const filteredCustomers = useMemo(() => {
+    return customers.filter(c => 
+      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      c.phone.includes(customerSearch)
+    )
+  }, [customers, customerSearch])
+
   const selectedProduct = products.find(p => p.id === selectedProductId)
+  const selectedCustomer = customers.find(c => c.id === selectedCustomerId)
+  
   const displayPrice = selectedProduct ? (Number(selectedProduct.sellingPrice) || Number(selectedProduct.price) || 0) : 0;
   
   const totalBeforeDiscount = displayPrice * (parseInt(quantity) || 0);
@@ -92,6 +104,7 @@ export default function SalesEntryPage() {
       setQuantity("1")
       setDiscount("0")
       setProductSearch("")
+      setCustomerSearch("")
     } catch (err: any) {
       toast({ title: t.saleFailed, description: err.message === 'Insufficient stock' ? t.insufficientStock : err.message, variant: "destructive" })
     }
@@ -130,7 +143,7 @@ export default function SalesEntryPage() {
                     variant="outline"
                     role="combobox"
                     aria-expanded={isProductPopoverOpen}
-                    className="w-full justify-between font-normal"
+                    className="w-full justify-between font-normal h-12"
                   >
                     {selectedProductId
                       ? products.find((p) => p.id === selectedProductId)?.name
@@ -138,7 +151,7 @@ export default function SalesEntryPage() {
                     <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                   <div className="flex items-center border-b px-3">
                     <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
                     <Input
@@ -191,18 +204,78 @@ export default function SalesEntryPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>{t.customer} (Optional for Cash)</Label>
-                <Select onValueChange={setSelectedCustomerId} value={selectedCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t.searchCustomers} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name} ({c.phone})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={isCustomerPopoverOpen}
+                      className="w-full justify-between font-normal h-12"
+                    >
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 opacity-50" />
+                        {selectedCustomerId
+                          ? customers.find((c) => c.id === selectedCustomerId)?.name
+                          : t.searchCustomers}
+                      </div>
+                      <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                    <div className="flex items-center border-b px-3">
+                      <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                      <Input
+                        placeholder={t.searchCustomers}
+                        className="border-none focus-visible:ring-0 shadow-none px-0"
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                      />
+                    </div>
+                    <ScrollArea className="h-72">
+                      <div 
+                        className="p-2 text-xs font-bold text-muted-foreground bg-muted/30 cursor-pointer hover:bg-muted"
+                        onClick={() => {
+                          setSelectedCustomerId("")
+                          setIsCustomerPopoverOpen(false)
+                        }}
+                      >
+                        -- {t.cash} --
+                      </div>
+                      {filteredCustomers.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          {t.noCustomers}
+                        </div>
+                      ) : (
+                        <div className="p-1">
+                          {filteredCustomers.map((c) => (
+                            <div
+                              key={c.id}
+                              className={cn(
+                                "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground",
+                                selectedCustomerId === c.id && "bg-accent text-accent-foreground"
+                              )}
+                              onClick={() => {
+                                setSelectedCustomerId(c.id)
+                                setIsCustomerPopoverOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  selectedCustomerId === c.id ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium">{c.name}</span>
+                                <span className="text-xs text-muted-foreground">{c.phone}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="grid gap-2">
@@ -211,7 +284,7 @@ export default function SalesEntryPage() {
                   defaultValue="cash" 
                   value={paymentType} 
                   onValueChange={(val) => setPaymentType(val as any)}
-                  className="flex gap-4 p-2 bg-muted rounded-md"
+                  className="flex gap-4 p-2 bg-muted rounded-md h-12 items-center"
                 >
                   <div className="flex items-center space-x-2 rtl:space-x-reverse">
                     <RadioGroupItem value="cash" id="cash" />
@@ -231,6 +304,7 @@ export default function SalesEntryPage() {
                 <Input 
                   id="qty" 
                   type="number" 
+                  className="h-12 text-lg font-semibold"
                   value={quantity} 
                   onChange={(e) => setQuantity(e.target.value)} 
                   min="1"
@@ -241,6 +315,7 @@ export default function SalesEntryPage() {
                 <Input 
                   id="discount" 
                   type="number" 
+                  className="h-12 text-lg"
                   value={discount} 
                   onChange={(e) => setDiscount(e.target.value)} 
                   min="0"
@@ -249,13 +324,13 @@ export default function SalesEntryPage() {
               </div>
               <div className="grid gap-2">
                 <Label>{t.finalTotal}</Label>
-                <div className="h-10 px-3 py-2 rounded-md bg-accent/20 border border-accent/30 flex items-center font-bold text-primary">
+                <div className="h-12 px-3 py-2 rounded-md bg-accent/20 border border-accent/30 flex items-center font-bold text-xl text-primary">
                   ${finalTotal.toFixed(2)}
                 </div>
               </div>
             </div>
 
-            <Button className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-6 shadow-md" onClick={handleSale}>
+            <Button className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-8 text-xl shadow-md" onClick={handleSale}>
               {t.completeSale}
             </Button>
           </CardContent>
