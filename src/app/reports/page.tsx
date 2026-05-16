@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, Download, RotateCcw } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
@@ -21,6 +21,7 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
+  // تهيئة التاريخ في useEffect لتجنب أخطاء Hydration
   useEffect(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -73,7 +74,7 @@ export default function ReportsPage() {
     if (confirm(t.confirmReturn)) {
       if (db.returnSale(saleId)) {
         toast({ title: t.success, description: t.saleReturned })
-        loadSales();
+        loadSales(); // تحديث فوري للبيانات في الصفحة
       } else {
         toast({ title: t.error, description: "Sale not found", variant: "destructive" })
       }
@@ -132,12 +133,20 @@ export default function ReportsPage() {
                 <TableBody>
                   {sales.map(sale => (
                     <TableRow key={sale.id}>
-                      <TableCell className="text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </TableCell>
                       <TableCell className="font-medium">{sale.productName}</TableCell>
                       <TableCell>{sale.quantitySold}</TableCell>
                       <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleReturn(sale.id)} title={t.returnSale}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => handleReturn(sale.id)} 
+                          className="hover:bg-orange-50"
+                          title={t.returnSale}
+                        >
                           <RotateCcw className="h-4 w-4 text-orange-500" />
                         </Button>
                       </TableCell>

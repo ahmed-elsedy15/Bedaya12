@@ -34,7 +34,7 @@ export interface Sale {
   customerName?: string;
   paymentType: 'cash' | 'credit';
   discount: number;
-  debtAmount?: number; // المبلغ الذي أضيف فعلياً للدين
+  debtAmount: number; // المبلغ الذي سُجل فعلياً كدين لهذا الصنف
 }
 
 const STORAGE_KEYS = {
@@ -71,7 +71,6 @@ export const db = {
   notify: () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
-      // إرسال حدث تخزين يدوي لضمان تحديث كل المكونات
       window.dispatchEvent(new Event('storage'));
     }
   },
@@ -149,7 +148,7 @@ export const db = {
       sellingPrice: Number(product.sellingPrice),
       quantity: Number(product.quantity),
       price: Number(product.sellingPrice),
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
     db.saveProducts([newProduct, ...products]);
@@ -162,9 +161,9 @@ export const db = {
       if (p.id === id) {
         const merged = { ...p, ...updates };
         if (updates.sellingPrice !== undefined) merged.sellingPrice = Number(updates.sellingPrice);
-        if (updates.price !== undefined) merged.price = Number(updates.price);
         if (updates.quantity !== undefined) merged.quantity = Number(updates.quantity);
         if (updates.purchasePrice !== undefined) merged.purchasePrice = Number(updates.purchasePrice);
+        merged.price = merged.sellingPrice;
         return merged;
       }
       return p;
@@ -181,7 +180,7 @@ export const db = {
     const customers = db.getCustomers();
     const newCustomer: Customer = {
       ...customer,
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      id: crypto.randomUUID(),
       totalDebt: 0,
       createdAt: Date.now(),
     };
@@ -245,7 +244,7 @@ export const db = {
 
     const sales = db.getSales();
     const newSale: Sale = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
+      id: crypto.randomUUID(),
       productId,
       productName: product.name,
       quantitySold: qty,
@@ -282,20 +281,18 @@ export const db = {
     // 1. إعادة الكمية للمخزون
     const pIndex = products.findIndex(p => p.id === sale.productId);
     if (pIndex !== -1) {
-      products[pIndex].quantity = (Number(products[pIndex].quantity) || 0) + (Number(sale.quantitySold) || 0);
+      products[pIndex].quantity = Number(products[pIndex].quantity) + Number(sale.quantitySold);
     }
 
-    // 2. تحديث مديونية العميل
-    if (sale.paymentType === 'credit' && sale.customerId) {
+    // 2. تحديث مديونية العميل (إذا كان هناك دين مسجل)
+    if (sale.customerId && Number(sale.debtAmount) > 0) {
       const cIndex = customers.findIndex(c => c.id === sale.customerId);
       if (cIndex !== -1) {
-        // نخصم مبلغ الدين الذي سُجل فعلياً عند البيع وليس كامل قيمة الفاتورة
-        const debtToReturn = Number(sale.debtAmount) || Number(sale.totalPrice);
-        customers[cIndex].totalDebt = Math.max(0, (Number(customers[cIndex].totalDebt) || 0) - debtToReturn);
+        customers[cIndex].totalDebt = Math.max(0, Number(customers[cIndex].totalDebt) - Number(sale.debtAmount));
       }
     }
 
-    // 3. حذف العملية وحفظ الكل بشكل ذري
+    // 3. حذف السجل وحفظ كل شيء بشكل ذري
     const updatedSales = allSales.filter(s => s.id !== saleId);
 
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
