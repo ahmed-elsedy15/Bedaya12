@@ -109,6 +109,8 @@ export const translations = {
     regularCustomer: "Regular Customer",
     specialCustomer: "Special Customer",
     newCustomer: "New Customer?",
+    debtIssuedToday: "Debts Issued Today",
+    debtCollectedToday: "Debts Collected Today",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -131,7 +133,7 @@ export const translations = {
     salesRecorded: "عملية بيع مسجلة",
     dailyIncome: "إجمالي الدخل اليومي",
     salesProfit: "ربح مبيعات اليوم",
-    totalMonthProfit: "إجمالي أرباح هذا الشهر",
+    totalMonthProfit: "إجمالي أأرباح هذا الشهر",
     totalMonthRevenue: "إجمالي إيرادات هذا الشهر",
     topProduct: "المنتج الأعلى طلباً",
     addProduct: "إضافة منتج",
@@ -219,7 +221,8 @@ export const translations = {
     regularCustomer: "عميل عادي",
     specialCustomer: "عميل خاص",
     newCustomer: "عميل جديد؟",
+    debtIssuedToday: "ديون مبيعات اليوم",
+    debtCollectedToday: "ديون محصلة اليوم",
   }
 };
-
 export type Language = "en" | "ar";
