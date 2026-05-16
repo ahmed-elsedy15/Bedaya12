@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, Search, Check, RotateCcw, User, Plus, Trash2, Tag, CreditCard, Wallet, ArrowRight } from "lucide-react"
+import { ShoppingCart, History, Search, Check, RotateCcw, User, Plus, Trash2, Tag, CreditCard, Wallet, ArrowRight, DollarSign } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -183,9 +183,9 @@ export default function SalesEntryPage() {
         </Badge>
       </header>
 
-      {/* Top Selection Section - Adjusted Ratios */}
+      {/* Top Selection Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Product Selection Card - LARGER (8/12) */}
+        {/* Product Selection Card - 8/12 */}
         <Card className="lg:col-span-8 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-primary w-full" />
           <CardHeader className="pb-4">
@@ -196,84 +196,99 @@ export default function SalesEntryPage() {
               {t.selectProduct}
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-5 grid gap-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.productName}</Label>
-                <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-12 text-start font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
-                      {selectedProductId ? products.find(p => p.id === selectedProductId)?.name : t.searchProducts}
-                      <Search className="ml-2 h-4 w-4 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-slate-200 dark:border-slate-800" align="start">
-                    <div className="flex items-center border-b px-3 bg-slate-50 dark:bg-slate-800">
-                      <Search className="mr-2 h-4 w-4 opacity-50" />
-                      <Input
-                        placeholder={t.searchProducts}
-                        className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
-                        value={productSearch}
-                        onChange={(e) => setProductSearch(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <ScrollArea className="h-72">
-                      {filteredProducts.length === 0 ? (
-                        <div className="p-8 text-center text-sm text-muted-foreground">{t.noData}</div>
-                      ) : (
-                        <div className="p-1">
-                          {filteredProducts.map((p) => (
-                            <div
-                              key={p.id}
-                              className={cn(
-                                "flex cursor-pointer items-center rounded-md px-3 py-3 text-sm transition-colors",
-                                "hover:bg-primary/10 hover:text-primary",
-                                selectedProductId === p.id && "bg-primary text-primary-foreground"
-                              )}
-                              onClick={() => {
-                                setSelectedProductId(p.id)
-                                setIsProductPopoverOpen(false)
-                                setProductSearch("")
-                              }}
-                            >
-                              <div className="flex-1">
-                                <p className="font-semibold">{p.name}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <Badge variant="secondary" className="text-[10px] h-4 px-1">${(p.sellingPrice || p.price || 0).toFixed(2)}</Badge>
-                                  <span className="text-[10px] text-muted-foreground">{p.quantity} {t.units}</span>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              {/* Row 1: Product Name and Quantity */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                <div className="md:col-span-9 grid gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.productName}</Label>
+                  <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="w-full justify-between h-12 text-start font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
+                        {selectedProductId ? products.find(p => p.id === selectedProductId)?.name : t.searchProducts}
+                        <Search className="ml-2 h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-slate-200 dark:border-slate-800" align="start">
+                      <div className="flex items-center border-b px-3 bg-slate-50 dark:bg-slate-800">
+                        <Search className="mr-2 h-4 w-4 opacity-50" />
+                        <Input
+                          placeholder={t.searchProducts}
+                          className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
+                          value={productSearch}
+                          onChange={(e) => setProductSearch(e.target.value)}
+                          autoFocus
+                        />
+                      </div>
+                      <ScrollArea className="h-72">
+                        {filteredProducts.length === 0 ? (
+                          <div className="p-8 text-center text-sm text-muted-foreground">{t.noData}</div>
+                        ) : (
+                          <div className="p-1">
+                            {filteredProducts.map((p) => (
+                              <div
+                                key={p.id}
+                                className={cn(
+                                  "flex cursor-pointer items-center rounded-md px-3 py-3 text-sm transition-colors",
+                                  "hover:bg-primary/10 hover:text-primary",
+                                  selectedProductId === p.id && "bg-primary text-primary-foreground"
+                                )}
+                                onClick={() => {
+                                  setSelectedProductId(p.id)
+                                  setIsProductPopoverOpen(false)
+                                  setProductSearch("")
+                                }}
+                              >
+                                <div className="flex-1">
+                                  <p className="font-semibold">{p.name}</p>
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <Badge variant="secondary" className="text-[10px] h-4 px-1">${(p.sellingPrice || p.price || 0).toFixed(2)}</Badge>
+                                    <span className="text-[10px] text-muted-foreground">{p.quantity} {t.units}</span>
+                                  </div>
                                 </div>
+                                <Check className={cn("ml-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
                               </div>
-                              <Check className={cn("ml-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="md:col-span-2 grid gap-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.quantity}</Label>
-                <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" className="h-12 border-slate-200 dark:border-slate-800" />
-              </div>
-              <div className="md:col-span-3 grid gap-2">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.discount}</Label>
-                <div className="relative">
-                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
-                  <Input type="number" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} min="0" className="h-12 pl-9 border-slate-200 dark:border-slate-800" placeholder="0.00" />
+                            ))}
+                          </div>
+                        )}
+                      </ScrollArea>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="md:col-span-3 grid gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.quantity}</Label>
+                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" className="h-12 border-slate-200 dark:border-slate-800 text-center" />
                 </div>
               </div>
-              <div className="md:col-span-2 flex items-end">
-                <Button onClick={addToCart} className="w-full h-12 bg-primary hover:bg-primary/90 shadow-sm">
-                  <Plus className="h-4 w-4" />
-                </Button>
+
+              {/* Row 2: Price, Discount, and Add Button */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                <div className="md:col-span-3 grid gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.sellingPrice}</Label>
+                  <div className="h-12 flex items-center px-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-md font-bold text-primary">
+                    <DollarSign className="h-4 w-4 mr-1 opacity-50" />
+                    {selectedProduct ? (selectedProduct.sellingPrice || selectedProduct.price || 0).toFixed(2) : "0.00"}
+                  </div>
+                </div>
+                <div className="md:col-span-6 grid gap-2">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.discount}</Label>
+                  <div className="relative">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                    <Input type="number" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} min="0" className="h-12 pl-9 border-slate-200 dark:border-slate-800" placeholder="0.00" />
+                  </div>
+                </div>
+                <div className="md:col-span-3 flex items-end">
+                  <Button onClick={addToCart} className="w-full h-12 bg-primary hover:bg-primary/90 shadow-sm font-bold gap-2">
+                    <Plus className="h-4 w-4" />
+                    {t.addToCart}
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Customer & Payment Card - SMALLER (4/12) */}
+        {/* Customer & Payment Card - 4/12 */}
         <Card className="lg:col-span-4 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-accent w-full" />
           <CardHeader className="pb-4">
@@ -458,6 +473,7 @@ export default function SalesEntryPage() {
         </div>
       </div>
 
+      {/* Recent Sales History */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
