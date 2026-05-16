@@ -4,17 +4,15 @@
 import { useEffect, useState, useRef } from "react"
 import { db, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard, HardDrive, Cloud, Download, Upload, CheckCircle2 } from "lucide-react"
+import { Package, DollarSign, BarChart2, ShoppingBag, CreditCard, Calendar, HardDrive, Download, Upload } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { auth } from "@/lib/firebase"
 
 export default function Dashboard() {
   const { t } = useTranslation()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [isSynced, setIsSynced] = useState(false)
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSalesToday: 0,
@@ -67,21 +65,49 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadStats()
-    
-    const handleSync = () => {
-      loadStats();
-      setIsSynced(true);
-      setTimeout(() => setIsSynced(false), 3000);
-    };
-
-    window.addEventListener('storage', loadStats);
-    window.addEventListener('cloud-sync-complete', handleSync);
-    
-    return () => {
-      window.removeEventListener('storage', loadStats);
-      window.removeEventListener('cloud-sync-complete', handleSync);
-    };
+    window.addEventListener('storage', loadStats)
+    return () => window.removeEventListener('storage', loadStats)
   }, [])
+
+  const handleExport = () => {
+    const data = {
+      products: db.getProducts(),
+      sales: db.getSales(),
+      customers: db.getCustomers(),
+      exportDate: new Date().toISOString()
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `salesphere_backup_${getLocalDateString()}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({ title: t.success, description: "Backup exported successfully." })
+  }
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string)
+        if (!data.products && !data.sales && !data.customers) throw new Error("Invalid format")
+        
+        db.importAll(data)
+        toast({ title: t.success, description: t.importSuccess })
+        loadStats()
+      } catch (err) {
+        toast({ title: t.error, description: t.importError, variant: "destructive" })
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ""
+  }
 
   return (
     <div className="p-8 space-y-8">
@@ -91,16 +117,28 @@ export default function Dashboard() {
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
         
-        <Card className="border-none shadow-sm bg-green-50/50 dark:bg-green-900/10 max-w-md">
-          <CardContent className="p-4 flex items-center gap-3">
-            <Cloud className={`w-5 h-5 ${isSynced ? 'text-green-600 animate-bounce' : 'text-blue-600'}`} />
-            <div>
-              <p className="text-xs font-bold text-green-700 dark:text-green-400">
-                {isSynced ? "تمت المزامنة بنجاح" : "نسخ احتياطي تلقائي نشط"}
-              </p>
-              <p className="text-[10px] text-green-600/80 dark:text-green-400/80">بياناتك محفوظة بأمان في سحابة جوجل</p>
+        <Card className="border-none shadow-sm bg-blue-50/50 dark:bg-blue-900/10 max-w-md">
+          <CardContent className="p-4 flex items-center gap-4">
+            <HardDrive className="w-8 h-8 text-blue-600" />
+            <div className="flex-1">
+              <p className="text-xs font-bold text-blue-700 dark:text-blue-400">{t.storageStatus}</p>
+              <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80">{t.localOnly}</p>
             </div>
-            {isSynced && <CheckCircle2 className="w-4 h-4 text-green-600 ml-auto" />}
+            <div className="flex gap-2">
+              <Button size="icon" variant="outline" className="h-8 w-8" onClick={handleExport} title={t.exportData}>
+                <Download className="h-4 w-4" />
+              </Button>
+              <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => fileInputRef.current?.click()} title={t.importData}>
+                <Upload className="h-4 w-4" />
+              </Button>
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".json" 
+                onChange={handleImport} 
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
