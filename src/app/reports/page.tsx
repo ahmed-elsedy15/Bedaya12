@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { db, Sale, DB_UPDATE_EVENT } from "@/lib/db"
+import { db, Sale, DB_UPDATE_EVENT, getLocalDateString } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
@@ -21,21 +21,23 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
+  // تحميل المبيعات بناءً على التاريخ المختار
   const loadSales = useCallback(() => {
-    // استخدام التاريخ المختار أو تاريخ اليوم بتنسيق محلي آمن للهيدرة
-    const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
+    const dateToLoad = selectedDate || getLocalDateString();
     const allSales = db.getSales()
     const filtered = allSales.filter(s => s.date === dateToLoad)
     setSales(filtered)
   }, [selectedDate])
 
+  // ضبط التاريخ الابتدائي ليكون التاريخ المحلي عند تحميل المكون
   useEffect(() => {
-    const today = new Date().toISOString().split('T')[0];
-    setSelectedDate(today);
+    setSelectedDate(getLocalDateString());
   }, [])
 
   useEffect(() => {
-    loadSales()
+    if (selectedDate) {
+      loadSales()
+    }
     
     const handleSync = () => loadSales();
     window.addEventListener(DB_UPDATE_EVENT, handleSync)
@@ -45,7 +47,7 @@ export default function ReportsPage() {
       window.removeEventListener(DB_UPDATE_EVENT, handleSync)
       window.removeEventListener('storage', handleSync)
     }
-  }, [loadSales])
+  }, [loadSales, selectedDate])
 
   const totalAmount = sales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
 
@@ -75,7 +77,6 @@ export default function ReportsPage() {
       const success = db.returnSale(saleId);
       if (success) {
         toast({ title: t.success, description: t.saleReturned })
-        // تحديث يدوي فوري للحالة لضمان استجابة الواجهة
         loadSales();
       }
     }
@@ -85,8 +86,7 @@ export default function ReportsPage() {
     if (confirm(t.deleteConfirm)) {
       const success = db.deleteSale(saleId);
       if (success) {
-        toast({ title: t.success, description: "تم حذف السجل بنجاح" })
-        // تحديث يدوي فوري للحالة لضمان استجابة الواجهة
+        toast({ title: t.success, description: t.success })
         loadSales();
       }
     }

@@ -56,6 +56,7 @@ const STORAGE_KEYS = {
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
 
+// دالة للحصول على التاريخ المحلي بتنسيق YYYY-MM-DD
 export const getLocalDateString = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -64,7 +65,7 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// حساب الربح المحقق من "مبلغ مدفوع" لفاتورة معينة
+// حساب الربح المحقق من "مبلغ مدفوع" لفاتورة معينة بناءً على نسبة الربح الأصلية
 export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number) => {
   const totalPrice = Number(sale.totalPrice) || 0;
   if (totalPrice <= 0) return 0;
@@ -172,7 +173,6 @@ export const db = {
     const customer = customers.find(c => c.id === id);
     if (!customer) return;
 
-    // إذا كان المبلغ بالسالب، يعني العميل يسدد دينه
     if (amount < 0) {
       const payments = db.getPayments();
       const newPayment: Payment = {
