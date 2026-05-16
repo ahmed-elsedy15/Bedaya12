@@ -22,7 +22,6 @@ export default function Dashboard() {
     revenueMonth: 0,
     debtIssuedToday: 0,
     debtCollectedToday: 0,
-    revenueMonthTotal: 0
   })
 
   const loadStats = useCallback(() => {
@@ -30,34 +29,34 @@ export default function Dashboard() {
     const allSales = db.getSales();
     const allPayments = db.getPayments();
     
-    const today = getLocalDateString();
-    const currentMonthPrefix = today.substring(0, 7);
+    const todayStr = getLocalDateString();
+    const [year, month] = todayStr.split('-');
+    const currentMonthPrefix = `${year}-${month}`; // YYYY-MM
     
-    // إحصائيات اليوم (تعتمد على المبيعات التي تمت اليوم)
-    const salesToday = allSales.filter(s => s.date === today);
+    // 1. مبيعات اليوم (كاش + آجل)
+    const salesToday = allSales.filter(s => s.date === todayStr);
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     const debtIssuedToday = salesToday.reduce((sum, s) => sum + (Number(s.debtAmount) || 0), 0);
 
-    // تحصيلات الديون اليوم (سيولة نقدية منفصلة)
-    const paymentsToday = allPayments.filter(p => p.date === today);
+    // 2. تحصيلات الديون اليوم (سيولة نقدية من ديون قديمة)
+    const paymentsToday = allPayments.filter(p => p.date === todayStr);
     const debtCollectedToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // إحصائيات الشهر
+    // 3. إحصائيات الشهر (تشمل مبيعات اليوم تلقائياً)
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
     const revenueMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
-    const profitMonth = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
+    const profitMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
 
     setStats({
       totalProducts: products.length,
       totalSalesToday: salesToday.length,
       revenueToday: revenueToday,
       profitToday: profitToday,
-      profitMonth: profitMonth,
+      profitMonth: profitMonthTotal,
       revenueMonth: revenueMonthTotal,
       debtIssuedToday: debtIssuedToday,
-      debtCollectedToday: debtCollectedToday,
-      revenueMonthTotal: revenueMonthTotal
+      debtCollectedToday: debtCollectedToday
     });
   }, []);
 
@@ -165,7 +164,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700 dark:text-red-400">${stats.debtIssuedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-red-600/80">المبالغ التي خرجت كديون اليوم</p>
+            <p className="text-[10px] text-red-600/80">قيمة الديون التي خرجت اليوم</p>
           </CardContent>
         </Card>
 
@@ -178,12 +177,38 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">ديون قديمة تم تحصيلها اليوم (كاش)</p>
+            <p className="text-[10px] text-amber-600/80">ديون قديمة تم تحصيلها اليوم</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card className="border-none shadow-sm bg-white dark:bg-slate-900/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              {t.monthRevenue}
+              <BarChart2 className="h-4 w-4 text-slate-500" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">${stats.revenueMonth.toFixed(2)}</div>
+            <p className="text-[10px] text-muted-foreground">إجمالي مبيعات الشهر (تشمل مبيعات اليوم)</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-primary text-primary-foreground">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between">
+              {t.monthProfit}
+              <TrendingUp className="h-4 w-4 text-primary-foreground" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold">${stats.profitMonth.toFixed(2)}</div>
+            <p className="text-[10px] opacity-80">إجمالي صافي أرباح مبيعات الشهر</p>
+          </CardContent>
+        </Card>
+
         <Card className="border-none shadow-sm bg-white dark:bg-slate-900/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -207,32 +232,6 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-xl font-bold">{stats.totalSalesToday}</div>
             <p className="text-[10px] text-muted-foreground">{t.salesRecorded}</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-sm bg-slate-900 text-white dark:bg-primary/20 dark:text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center justify-between">
-              {t.monthRevenue}
-              <DollarSign className="h-4 w-4 text-primary" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-slate-400">إجمالي قيمة مبيعات الشهر</p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-sm bg-primary text-primary-foreground">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center justify-between">
-              {t.monthProfit}
-              <TrendingUp className="h-4 w-4 text-primary-foreground" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-xl font-bold">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] opacity-80">إجمالي صافي أرباح مبيعات الشهر</p>
           </CardContent>
         </Card>
       </div>
