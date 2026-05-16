@@ -161,7 +161,7 @@ export const db = {
     db.notify();
   },
 
-  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0) => {
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0, manualCustomerName?: string) => {
     const products = db.getProducts();
     const product = products.find(p => p.id === productId);
     if (!product || Number(product.quantity) < Number(quantity)) throw new Error('Insufficient stock');
@@ -173,8 +173,9 @@ export const db = {
     // تحديث المخزون
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
-    let customerName = undefined;
+    let customerName = manualCustomerName;
     let updatedCustomers = db.getCustomers();
+    
     if (customerId) {
       const cIdx = updatedCustomers.findIndex(c => c.id === customerId);
       if (cIdx !== -1) {
@@ -197,7 +198,7 @@ export const db = {
       date: getLocalDateString(),
       timestamp: Date.now(),
       customerId,
-      customerName,
+      customerName: customerName || undefined,
       paymentType,
       discount: dsc,
       debtAmount: paymentType === 'credit' ? debt : 0
@@ -223,10 +224,10 @@ export const db = {
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
-    // 2. خصم الدين من العميل
+    // 2. خصم الدين من العميل (فقط إذا كان العميل مسجلاً وله ID)
     const customers = db.getCustomers();
     const updatedCustomers = customers.map(c => 
-      (c.id === sale.customerId && Number(sale.debtAmount) > 0) 
+      (sale.customerId && c.id === sale.customerId && Number(sale.debtAmount) > 0) 
         ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(sale.debtAmount)) } 
         : c
     );

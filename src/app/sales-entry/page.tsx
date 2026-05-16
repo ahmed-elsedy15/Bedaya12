@@ -37,6 +37,7 @@ export default function SalesEntryPage() {
   
   const [selectedProductId, setSelectedProductId] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
+  const [manualCustomerName, setManualCustomerName] = useState("")
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const [itemDiscount, setItemDiscount] = useState("0")
@@ -118,13 +119,13 @@ export default function SalesEntryPage() {
 
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
-    if (paymentType === 'credit' && !selectedCustomerId) {
-      toast({ title: t.error, description: "Select a customer", variant: "destructive" });
+    
+    if (paymentType === 'credit' && !selectedCustomerId && !manualCustomerName) {
+      toast({ title: t.error, description: t.customerName, variant: "destructive" });
       return;
     }
 
     try {
-      // حساب نسبة الدين من الفاتورة لتوزيعها على كل منتج (لأغراض المرتجعات لاحقاً)
       const debtRatio = finalTotal > 0 ? debtToRecord / finalTotal : 0;
 
       cart.forEach(item => {
@@ -135,13 +136,15 @@ export default function SalesEntryPage() {
           paymentType, 
           selectedCustomerId || undefined, 
           item.discount,
-          itemDebt
+          itemDebt,
+          selectedCustomerId ? undefined : manualCustomerName
         )
       })
 
       toast({ title: t.saleRecorded })
       setCart([])
       setSelectedCustomerId("")
+      setManualCustomerName("")
       setPaymentType('cash')
       setPaidNow("0")
       loadData()
@@ -262,7 +265,7 @@ export default function SalesEntryPage() {
               <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-between h-12 text-start font-normal">
-                    {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : t.searchCustomers}
+                    {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : (manualCustomerName || t.searchCustomers)}
                     <Search className="ml-2 h-4 w-4 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -277,11 +280,11 @@ export default function SalesEntryPage() {
                     />
                   </div>
                   <ScrollArea className="h-72">
-                    <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); }}>
+                    <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer" onClick={() => { setSelectedCustomerId(""); setManualCustomerName(""); setIsCustomerPopoverOpen(false); }}>
                       -- {t.cash} --
                     </div>
                     {filteredCustomers.map((c) => (
-                      <div key={c.id} className="p-3 hover:bg-slate-50 cursor-pointer" onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}>
+                      <div key={c.id} className="p-3 hover:bg-slate-50 cursor-pointer" onClick={() => { setSelectedCustomerId(c.id); setManualCustomerName(""); setIsCustomerPopoverOpen(false); }}>
                         <p className="text-sm">{c.name}</p>
                       </div>
                     ))}
@@ -306,7 +309,19 @@ export default function SalesEntryPage() {
               </RadioGroup>
             </div>
 
-            {paymentType === 'credit' && selectedCustomerId && (
+            {paymentType === 'credit' && !selectedCustomerId && (
+              <div className="grid gap-2 animate-in slide-in-from-top-2">
+                <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.customerName} (يدوي)</Label>
+                <Input 
+                  placeholder={t.customerName}
+                  value={manualCustomerName}
+                  onChange={(e) => setManualCustomerName(e.target.value)}
+                  className="h-12 border-orange-200 focus:border-orange-500"
+                />
+              </div>
+            )}
+
+            {paymentType === 'credit' && (selectedCustomerId || manualCustomerName) && (
               <div className="grid gap-2 animate-in fade-in">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.amountPaidNow}</Label>
                 <Input type="number" value={paidNow} onChange={(e) => setPaidNow(e.target.value)} min="0" className="h-12 bg-green-50/20" placeholder="0.00" />
@@ -399,7 +414,10 @@ export default function SalesEntryPage() {
                 <TableRow key={sale.id} className="text-sm">
                   <TableCell className="py-4">
                     <div className="font-bold text-slate-700 dark:text-slate-300">{sale.productName}</div>
-                    <div className="text-[10px] text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {sale.customerName && <span className="text-blue-600 font-medium mr-1">[{sale.customerName}]</span>}
+                      {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={sale.paymentType === 'cash' ? "default" : "outline"} className={sale.paymentType === 'credit' ? "text-orange-600 border-orange-200" : ""}>
