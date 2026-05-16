@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useEffect, useState, useRef } from "react"
-import { db, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
+import { useEffect, useState, useRef, useCallback } from "react"
+import { db, getLocalDateString, getSafeSaleProfit, DB_UPDATE_EVENT } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Package, DollarSign, BarChart2, ShoppingBag, CreditCard, Calendar, HardDrive, Download, Upload } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
@@ -23,7 +23,7 @@ export default function Dashboard() {
     revenueMonth: 0
   })
 
-  const loadStats = () => {
+  const loadStats = useCallback(() => {
     const products = db.getProducts()
     const sales = db.getSales()
     
@@ -61,13 +61,17 @@ export default function Dashboard() {
       revenueMonth,
       bestSeller
     })
-  }
+  }, [])
 
   useEffect(() => {
     loadStats()
+    window.addEventListener(DB_UPDATE_EVENT, loadStats)
     window.addEventListener('storage', loadStats)
-    return () => window.removeEventListener('storage', loadStats)
-  }, [])
+    return () => {
+      window.removeEventListener(DB_UPDATE_EVENT, loadStats)
+      window.removeEventListener('storage', loadStats)
+    }
+  }, [loadStats])
 
   const handleExport = () => {
     const data = {
@@ -206,7 +210,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-xs text-blue-600/80 dark:text-green-400/80">{t.totalMonthProfit}</p>
+            <p className="text-xs text-green-600/80 dark:text-green-400/80">{t.totalMonthProfit}</p>
           </CardContent>
         </Card>
       </div>

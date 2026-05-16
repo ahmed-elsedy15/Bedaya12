@@ -42,6 +42,9 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'salesphere_customers',
 };
 
+// اسم الحدث المخصص للتنبيه بتحديث البيانات
+export const DB_UPDATE_EVENT = 'salesphere-db-updated';
+
 export const getLocalDateString = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -65,11 +68,18 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
 };
 
 export const db = {
+  notify: () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
+      // التوافق مع التبويبات الأخرى
+      window.dispatchEvent(new Event('storage'));
+    }
+  },
+
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
     const parsed = stored ? JSON.parse(stored) : [];
-    // التأكد من أن الكميات أرقام
     return parsed.map((p: any) => ({
       ...p,
       quantity: Number(p.quantity) || 0,
@@ -81,18 +91,26 @@ export const db = {
 
   saveProducts: (products: Product[]) => {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-    window.dispatchEvent(new CustomEvent('storage'));
+    db.notify();
   },
 
   getSales: (): Sale[] => {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(STORAGE_KEYS.SALES);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return parsed.map((s: any) => ({
+      ...s,
+      quantitySold: Number(s.quantitySold) || 0,
+      totalPrice: Number(s.totalPrice) || 0,
+      profit: Number(s.profit) || 0,
+      discount: Number(s.discount) || 0,
+      timestamp: Number(s.timestamp) || Date.now()
+    }));
   },
 
   saveSales: (sales: Sale[]) => {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
-    window.dispatchEvent(new CustomEvent('storage'));
+    db.notify();
   },
 
   getCustomers: (): Customer[] => {
@@ -107,7 +125,7 @@ export const db = {
 
   saveCustomers: (customers: Customer[]) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
-    window.dispatchEvent(new CustomEvent('storage'));
+    db.notify();
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -219,8 +237,10 @@ export const db = {
 
     // 1. إعادة الكمية للمخزون
     const products = db.getProducts();
+    let productUpdated = false;
     const updatedProducts = products.map(p => {
       if (p.id === sale.productId) {
+        productUpdated = true;
         return { 
           ...p, 
           quantity: Number(p.quantity) + Number(sale.quantitySold) 
@@ -228,7 +248,10 @@ export const db = {
       }
       return p;
     });
-    db.saveProducts(updatedProducts);
+
+    if (productUpdated) {
+      db.saveProducts(updatedProducts);
+    }
 
     // 2. تعديل مديونية العميل إذا كان البيع آجلاً
     if (sale.paymentType === 'credit' && sale.customerId) {
@@ -239,14 +262,13 @@ export const db = {
     const updatedSales = sales.filter(s => s.id !== saleId);
     db.saveSales(updatedSales);
     
-    // إرسال حدث للتنبيه بوجود تغيير
-    window.dispatchEvent(new CustomEvent('storage'));
+    db.notify();
   },
 
   importAll: (data: any) => {
     if (data.products) localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data.products));
     if (data.sales) localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(data.sales));
     if (data.customers) localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(data.customers));
-    window.dispatchEvent(new CustomEvent('storage'));
+    db.notify();
   }
 };

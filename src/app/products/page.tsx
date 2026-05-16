@@ -1,8 +1,8 @@
 
 "use client"
 
-import { useEffect, useState } from "react"
-import { db, Product } from "@/lib/db"
+import { useEffect, useState, useCallback } from "react"
+import { db, Product, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Plus, Edit2, Trash2, Search, TrendingUp } from "lucide-react"
@@ -22,22 +22,21 @@ export default function ProductsPage() {
 
   const [formData, setFormData] = useState({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
 
-  const loadProducts = () => {
+  const loadProducts = useCallback(() => {
     setProducts(db.getProducts())
-  }
+  }, [])
 
   useEffect(() => {
     loadProducts()
     
-    const handleSync = () => loadProducts();
-    window.addEventListener('cloud-sync-complete', handleSync);
-    window.addEventListener('storage', handleSync);
+    window.addEventListener(DB_UPDATE_EVENT, loadProducts)
+    window.addEventListener('storage', loadProducts)
     
     return () => {
-      window.removeEventListener('cloud-sync-complete', handleSync);
-      window.removeEventListener('storage', handleSync);
+      window.removeEventListener(DB_UPDATE_EVENT, loadProducts)
+      window.removeEventListener('storage', loadProducts)
     };
-  }, [])
+  }, [loadProducts])
 
   const handleSave = () => {
     if (!formData.name || !formData.purchasePrice || !formData.sellingPrice || !formData.quantity) {
