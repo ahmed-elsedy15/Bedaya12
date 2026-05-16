@@ -28,7 +28,7 @@ export interface Sale {
   purchasePriceAtSale: number;
   sellingPriceAtSale: number;
   totalPrice: number;
-  profit: number; // الإجمالي المتوقع للربح
+  profit: number; 
   date: string;
   timestamp: number;
   customerId?: string;
@@ -64,7 +64,6 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// حساب الربح المحقق فعلياً من الفاتورة بناءً على الجزء المدفوع كاش
 export const getRealizedSaleProfit = (sale: Sale) => {
   const totalPrice = Number(sale.totalPrice) || 0;
   if (totalPrice === 0) return 0;
@@ -77,7 +76,6 @@ export const getRealizedSaleProfit = (sale: Sale) => {
   return totalExpectedProfit * ratio;
 };
 
-// حساب الإيراد الفعلي من الفاتورة (الكاش فقط)
 export const getRealizedSaleRevenue = (sale: Sale) => {
   const totalPrice = Number(sale.totalPrice) || 0;
   const debt = Number(sale.debtAmount) || 0;
@@ -179,7 +177,6 @@ export const db = {
     const customer = customers.find(c => c.id === id);
     if (!customer) return;
 
-    // إذا كان المبلغ سالباً، فهذا يعني عملية "تسديد" (فلوس دخلت الدرج)
     if (amount < 0) {
       const payments = db.getPayments();
       const newPayment: Payment = {
@@ -257,10 +254,12 @@ export const db = {
     const products = db.getProducts();
     const customers = db.getCustomers();
 
+    // 1. إعادة البضاعة للمخزون (زيادة الكمية)
     const updatedProducts = products.map(p => 
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
+    // 2. خصم مديونية العميل (إذا كان هناك دين)
     let updatedCustomers = [...customers];
     if (sale.customerId && Number(sale.debtAmount) > 0) {
       updatedCustomers = customers.map(c => 
@@ -268,8 +267,10 @@ export const db = {
       );
     }
 
+    // 3. حذف العملية من سجل المبيعات
     const updatedSales = sales.filter(s => s.id !== saleId);
 
+    // 4. حفظ الكل في خطوة واحدة لضمان التزامن
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));

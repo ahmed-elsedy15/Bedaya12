@@ -22,6 +22,7 @@ export default function ReportsPage() {
   const [isSummarizing, setIsSummarizing] = useState(false)
 
   const loadSales = useCallback(() => {
+    // نستخدم التاريخ المختار أو تاريخ اليوم كقيمة افتراضية
     const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
     const allSales = db.getSales()
     const filtered = allSales.filter(s => s.date === dateToLoad)
@@ -35,12 +36,14 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadSales()
-    const sync = () => loadSales();
-    window.addEventListener(DB_UPDATE_EVENT, sync)
-    window.addEventListener('storage', sync)
+    
+    const handleSync = () => loadSales();
+    window.addEventListener(DB_UPDATE_EVENT, handleSync)
+    window.addEventListener('storage', handleSync)
+    
     return () => {
-      window.removeEventListener(DB_UPDATE_EVENT, sync)
-      window.removeEventListener('storage', sync)
+      window.removeEventListener(DB_UPDATE_EVENT, handleSync)
+      window.removeEventListener('storage', handleSync)
     }
   }, [loadSales])
 
@@ -71,7 +74,7 @@ export default function ReportsPage() {
     if (confirm(t.confirmReturn)) {
       if (db.returnSale(saleId)) {
         toast({ title: t.success, description: t.saleReturned })
-        loadSales();
+        loadSales(); // تحديث القائمة فوراً بعد الإرجاع
       }
     }
   }
@@ -127,46 +130,49 @@ export default function ReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.map(sale => (
-                    <TableRow key={sale.id}>
-                      <TableCell className="text-muted-foreground text-xs">
-                        {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{sale.productName}</div>
-                        <div className="text-[10px] text-muted-foreground">Qty: {sale.quantitySold}</div>
-                      </TableCell>
-                      <TableCell>
-                        <span className="text-sm font-medium text-slate-600">
-                          {sale.customerName || sale.customerId || '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
-                      <TableCell>
-                        {sale.debtAmount > 0 ? (
-                          <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
-                            ${sale.debtAmount.toFixed(2)}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon" 
-                          onClick={() => handleReturn(sale.id)} 
-                          className="h-8 w-8 hover:bg-orange-50 text-orange-500"
-                          title={t.returnSale}
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {sales.length === 0 && (
+                  {sales.length > 0 ? (
+                    sales.map(sale => (
+                      <TableRow key={sale.id}>
+                        <TableCell className="text-muted-foreground text-xs">
+                          {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">{sale.productName}</div>
+                          <div className="text-[10px] text-muted-foreground">الكمية: {sale.quantitySold}</div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm font-medium text-slate-600">
+                            {sale.customerName || '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
+                        <TableCell>
+                          {sale.debtAmount > 0 ? (
+                            <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                              ${sale.debtAmount.toFixed(2)}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleReturn(sale.id)} 
+                            className="h-8 w-8 hover:bg-orange-50 text-orange-500"
+                            title={t.returnSale}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">{t.noSales}</TableCell>
+                      <TableCell colSpan={6} className="h-48 text-center text-muted-foreground italic">
+                        {t.noSales}
+                      </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
