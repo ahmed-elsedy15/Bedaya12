@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw, Wallet, DollarSign } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 
 export default function ReportsPage() {
   const { t } = useTranslation()
@@ -19,6 +22,10 @@ export default function ReportsPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
+  
+  const [isPayModalOpen, setIsPayModalOpen] = useState(false)
+  const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
+  const [payAmount, setPayAmount] = useState("")
 
   const loadSales = useCallback(() => {
     const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
@@ -34,11 +41,12 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadSales()
-    window.addEventListener(DB_UPDATE_EVENT, loadSales)
-    window.addEventListener('storage', loadSales)
+    const sync = () => loadSales();
+    window.addEventListener(DB_UPDATE_EVENT, sync)
+    window.addEventListener('storage', sync)
     return () => {
-      window.removeEventListener(DB_UPDATE_EVENT, loadSales)
-      window.removeEventListener('storage', loadSales)
+      window.removeEventListener(DB_UPDATE_EVENT, sync)
+      window.removeEventListener('storage', sync)
     }
   }, [loadSales])
 
@@ -67,14 +75,24 @@ export default function ReportsPage() {
 
   const handleReturn = (saleId: string) => {
     if (confirm(t.confirmReturn)) {
-      const success = db.returnSale(saleId);
-      if (success) {
+      if (db.returnSale(saleId)) {
         toast({ title: t.success, description: t.saleReturned })
-        // الحل البديل: تحديث الحالة يدوياً فوراً لضمان العمل حتى لو فشل الحدث
         loadSales();
-      } else {
-        toast({ title: t.error, description: "Operation failed", variant: "destructive" })
       }
+    }
+  }
+
+  const handlePayDebt = () => {
+    if (!selectedSale || !payAmount) return
+    const amount = parseFloat(payAmount)
+    if (isNaN(amount) || amount <= 0) return
+
+    if (db.paySaleDebt(selectedSale.id, amount)) {
+      toast({ title: t.success, description: t.debtCleared })
+      loadSales()
+      setIsPayModalOpen(false)
+      setPayAmount("")
+      setSelectedSale(null)
     }
   }
 
@@ -122,36 +140,67 @@ export default function ReportsPage() {
                   <TableRow className="bg-muted/50 border-none">
                     <TableHead>{t.time}</TableHead>
                     <TableHead>{t.product}</TableHead>
-                    <TableHead>{t.qty}</TableHead>
+                    <TableHead>{t.customer}</TableHead>
                     <TableHead>{t.totalPrice}</TableHead>
+                    <TableHead>{t.debt}</TableHead>
                     <TableHead className="text-right">{t.actions}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sales.map(sale => (
                     <TableRow key={sale.id}>
-                      <TableCell className="text-muted-foreground">
+                      <TableCell className="text-muted-foreground text-xs">
                         {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </TableCell>
-                      <TableCell className="font-medium">{sale.productName}</TableCell>
-                      <TableCell>{sale.quantitySold}</TableCell>
+                      <TableCell>
+                        <div className="font-medium">{sale.productName}</div>
+                        <div className="text-[10px] text-muted-foreground">Qty: {sale.quantitySold}</div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm font-medium text-slate-600">
+                          {sale.customerName || sale.customerId || '-'}
+                        </span>
+                      </TableCell>
                       <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>
+                        {sale.debtAmount > 0 ? (
+                          <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                            ${sale.debtAmount.toFixed(2)}
+                          </Badge>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right space-x-1 rtl:space-x-reverse">
+                        {sale.debtAmount > 0 && (
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 text-green-600 hover:bg-green-50"
+                            onClick={() => {
+                              setSelectedSale(sale)
+                              setIsPayModalOpen(true)
+                            }}
+                            title={t.payDebt}
+                          >
+                            <Wallet className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Button 
                           variant="ghost" 
                           size="icon" 
                           onClick={() => handleReturn(sale.id)} 
-                          className="hover:bg-orange-50"
+                          className="h-8 w-8 hover:bg-orange-50 text-orange-500"
                           title={t.returnSale}
                         >
-                          <RotateCcw className="h-4 w-4 text-orange-500" />
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                   {sales.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-48 text-center text-muted-foreground">{t.noSales}</TableCell>
+                      <TableCell colSpan={6} className="h-48 text-center text-muted-foreground">{t.noSales}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -187,6 +236,46 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.payDebt} - {selectedSale?.customerName || t.customer}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground uppercase">{t.remainingDebt}</Label>
+                <div className="text-xl font-bold text-red-600">
+                  ${(selectedSale?.debtAmount || 0).toFixed(2)}
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid gap-3">
+              <Label htmlFor="payAmount" className="font-bold">{t.amountToPay}</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="payAmount" 
+                  type="number"
+                  className="pl-9 h-12 text-lg font-bold"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPayModalOpen(false)}>{t.cancel}</Button>
+            <Button onClick={handlePayDebt} className="bg-green-600 hover:bg-green-700 text-white font-bold px-8">
+              {t.save}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

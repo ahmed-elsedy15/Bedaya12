@@ -43,7 +43,6 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'salesphere_customers',
 };
 
-// توحيد اسم الحدث عالمياً
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
 
 export const getLocalDateString = () => {
@@ -170,7 +169,6 @@ export const db = {
     const dsc = Number(discount);
     const debt = Number(debtAmount);
     
-    // تحديث المخزون
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
     let customerName = manualCustomerName;
@@ -218,13 +216,11 @@ export const db = {
     const sale = sales.find(s => s.id === saleId);
     if (!sale) return false;
 
-    // 1. إعادة البضاعة للمخزون
     const products = db.getProducts();
     const updatedProducts = products.map(p => 
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
-    // 2. خصم الدين من العميل (فقط إذا كان العميل مسجلاً وله ID)
     const customers = db.getCustomers();
     const updatedCustomers = customers.map(c => 
       (sale.customerId && c.id === sale.customerId && Number(sale.debtAmount) > 0) 
@@ -232,14 +228,38 @@ export const db = {
         : c
     );
 
-    // 3. حذف العملية من السجل
     const updatedSales = sales.filter(s => s.id !== saleId);
 
-    // حفظ الكل دفعة واحدة
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     
+    db.notify();
+    return true;
+  },
+
+  paySaleDebt: (saleId: string, amount: number) => {
+    const sales = db.getSales();
+    const saleIndex = sales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return false;
+
+    const sale = sales[saleIndex];
+    const payAmount = Math.min(amount, Number(sale.debtAmount));
+
+    // تحديث الدين في الفاتورة
+    sale.debtAmount = Math.max(0, Number(sale.debtAmount) - payAmount);
+    sales[saleIndex] = sale;
+
+    // إذا كان العميل مسجلاً، نحدث مديونيته الكلية أيضاً
+    if (sale.customerId) {
+      const customers = db.getCustomers();
+      const updatedCustomers = customers.map(c => 
+        c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - payAmount) } : c
+      );
+      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
+    }
+
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
     db.notify();
     return true;
   },
