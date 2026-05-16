@@ -87,6 +87,9 @@ export const translations = {
     localOnly: "Local Storage (On this device)",
     storageWarning: "Data is saved only in this browser. Clearing browser data will delete it.",
     exportData: "Export Backup",
+    importData: "Import Backup",
+    importSuccess: "Data imported successfully!",
+    importError: "Failed to import data. Invalid file.",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -176,6 +179,9 @@ export const translations = {
     localOnly: "تخزين محلي (على هذا الجهاز)",
     storageWarning: "البيانات محفوظة فقط في هذا المتصفح. مسح بيانات المتصفح سيؤدي لحذفها.",
     exportData: "تصدير نسخة احتياطية",
+    importData: "استيراد نسخة احتياطية",
+    importSuccess: "تم استعادة البيانات بنجاح!",
+    importError: "فشل الاستيراد. الملف غير صالح.",
   }
 };
 

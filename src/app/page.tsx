@@ -1,14 +1,17 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { db, getLocalDateString, getSafeSaleProfit } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard, HardDrive, Info, Download } from "lucide-react"
+import { Package, DollarSign, TrendingUp, ShoppingBag, BarChart2, Calendar, CreditCard, HardDrive, Info, Download, Upload } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
   const { t } = useTranslation()
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalSalesToday: 0,
@@ -82,6 +85,45 @@ export default function Dashboard() {
     URL.revokeObjectURL(url);
   };
 
+  const handleImportData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const content = e.target?.result as string;
+        const data = JSON.parse(content);
+        
+        if (data.products && Array.isArray(data.products)) {
+          db.saveProducts(data.products);
+        }
+        if (data.sales && Array.isArray(data.sales)) {
+          db.saveSales(data.sales);
+        }
+        if (data.customers && Array.isArray(data.customers)) {
+          db.saveCustomers(data.customers);
+        }
+
+        toast({
+          title: t.success,
+          description: t.importSuccess,
+        });
+        loadStats();
+      } catch (err) {
+        console.error("Import error:", err);
+        toast({
+          title: t.error,
+          description: t.importError,
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   useEffect(() => {
     loadStats()
     
@@ -99,16 +141,38 @@ export default function Dashboard() {
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
         
-        <Card className="border-none shadow-sm bg-blue-50/50 dark:bg-blue-900/10 max-w-xs">
+        <Card className="border-none shadow-sm bg-blue-50/50 dark:bg-blue-900/10 max-w-md">
           <CardContent className="p-4 flex items-center gap-3">
             <HardDrive className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             <div>
               <p className="text-xs font-bold text-blue-700 dark:text-blue-400">{t.storageStatus}</p>
               <p className="text-[10px] text-blue-600/80 dark:text-blue-400/80">{t.localOnly}</p>
             </div>
-            <Button variant="ghost" size="icon" className="ml-auto" onClick={handleExportData} title={t.exportData}>
-              <Download className="w-4 h-4" />
-            </Button>
+            <div className="flex gap-1 ml-auto">
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept=".json" 
+                onChange={handleImportData}
+              />
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => fileInputRef.current?.click()} 
+                title={t.importData}
+              >
+                <Upload className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={handleExportData} 
+                title={t.exportData}
+              >
+                <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
