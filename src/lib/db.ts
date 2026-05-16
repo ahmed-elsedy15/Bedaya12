@@ -42,7 +42,6 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'salesphere_customers',
 };
 
-// اسم الحدث المخصص للتنبيه بتحديث البيانات
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
 
 export const getLocalDateString = () => {
@@ -71,7 +70,6 @@ export const db = {
   notify: () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
-      // التوافق مع التبويبات الأخرى
       window.dispatchEvent(new Event('storage'));
     }
   },
@@ -89,7 +87,6 @@ export const db = {
         price: Number(p.sellingPrice) || Number(p.price) || 0
       }));
     } catch (e) {
-      console.error("Failed to parse products", e);
       return [];
     }
   },
@@ -113,7 +110,6 @@ export const db = {
         timestamp: Number(s.timestamp) || Date.now()
       }));
     } catch (e) {
-      console.error("Failed to parse sales", e);
       return [];
     }
   },
@@ -133,7 +129,6 @@ export const db = {
         totalDebt: Number(c.totalDebt) || 0
       }));
     } catch (e) {
-      console.error("Failed to parse customers", e);
       return [];
     }
   },
@@ -163,8 +158,10 @@ export const db = {
     const updated = products.map((p) => {
       if (p.id === id) {
         const merged = { ...p, ...updates };
-        if (updates.sellingPrice !== undefined) merged.price = Number(updates.sellingPrice);
+        if (updates.sellingPrice !== undefined) merged.sellingPrice = Number(updates.sellingPrice);
+        if (updates.price !== undefined) merged.price = Number(updates.price);
         if (updates.quantity !== undefined) merged.quantity = Number(updates.quantity);
+        if (updates.purchasePrice !== undefined) merged.purchasePrice = Number(updates.purchasePrice);
         return merged;
       }
       return p;
@@ -200,27 +197,33 @@ export const db = {
 
   recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0) => {
     const products = db.getProducts();
-    const product = products.find((p) => p.id === productId);
-    if (!product || Number(product.quantity) < Number(quantity)) throw new Error('Insufficient stock');
+    const productIndex = products.findIndex(p => p.id === productId);
+    if (productIndex === -1 || Number(products[productIndex].quantity) < Number(quantity)) {
+      throw new Error('Insufficient stock');
+    }
 
-    const sellingPrice = Number(product.sellingPrice) || 0;
-    const purchasePrice = Number(product.purchasePrice) || 0;
+    const product = products[productIndex];
     const qty = Number(quantity);
     const dsc = Number(discount) || 0;
-    
+    const sellingPrice = Number(product.sellingPrice) || 0;
+    const purchasePrice = Number(product.purchasePrice) || 0;
     const totalPrice = (sellingPrice * qty) - dsc;
     const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
-    // تحديث المخزون باستخدام دالة موحدة
-    db.updateProduct(productId, { quantity: Number(product.quantity) - qty });
+    // تحديث المخزون
+    products[productIndex].quantity = Number(products[productIndex].quantity) - qty;
+    db.saveProducts(products);
 
     let customerName = undefined;
     if (customerId) {
       const customers = db.getCustomers();
-      const customer = customers.find(c => c.id === customerId);
-      if (customer) {
-        customerName = customer.name;
-        if (paymentType === 'credit') db.updateCustomerDebt(customerId, totalPrice);
+      const customerIndex = customers.findIndex(c => c.id === customerId);
+      if (customerIndex !== -1) {
+        customerName = customers[customerIndex].name;
+        if (paymentType === 'credit') {
+          customers[customerIndex].totalDebt = (Number(customers[customerIndex].totalDebt) || 0) + totalPrice;
+          db.saveCustomers(customers);
+        }
       }
     }
 
@@ -246,29 +249,35 @@ export const db = {
   },
 
   returnSale: (saleId: string) => {
-    const sales = db.getSales();
-    const sale = sales.find(s => s.id === saleId);
-    if (!sale) return;
-
-    // 1. إعادة الكمية للمخزون - استخدام دالة updateProduct لضمان التحديث الصحيح
-    const products = db.getProducts();
-    const product = products.find(p => p.id === sale.productId);
+    const allSales = db.getSales();
+    const saleIndex = allSales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return;
     
-    if (product) {
-      const newQuantity = Number(product.quantity) + Number(sale.quantitySold);
-      db.updateProduct(sale.productId, { quantity: newQuantity });
+    const sale = allSales[saleIndex];
+
+    // 1. إعادة الكمية للمخزون بشكل مباشر
+    const allProducts = db.getProducts();
+    const productIndex = allProducts.findIndex(p => p.id === sale.productId);
+    if (productIndex !== -1) {
+      allProducts[productIndex].quantity = Number(allProducts[productIndex].quantity) + Number(sale.quantitySold);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(allProducts));
     }
 
-    // 2. تعديل مديونية العميل إذا كان البيع آجلاً
+    // 2. تعديل مديونية العميل إذا كان البيع آجلاً بشكل مباشر
     if (sale.paymentType === 'credit' && sale.customerId) {
-      db.updateCustomerDebt(sale.customerId, -Number(sale.totalPrice));
+      const allCustomers = db.getCustomers();
+      const customerIndex = allCustomers.findIndex(c => c.id === sale.customerId);
+      if (customerIndex !== -1) {
+        allCustomers[customerIndex].totalDebt = (Number(allCustomers[customerIndex].totalDebt) || 0) - Number(sale.totalPrice);
+        localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(allCustomers));
+      }
     }
 
-    // 3. حذف سجل البيع
-    const updatedSales = sales.filter(s => s.id !== saleId);
-    db.saveSales(updatedSales);
-    
-    // إرسال تنبيه نهائي للتأكد من تحديث كل الواجهات
+    // 3. حذف سجل البيع بشكل مباشر
+    allSales.splice(saleIndex, 1);
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(allSales));
+
+    // 4. إرسال تنبيه واحد لكل الواجهات
     db.notify();
   },
 
