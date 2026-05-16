@@ -1,10 +1,9 @@
-
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
 import { db, getLocalDateString, DB_UPDATE_EVENT } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { DollarSign, BarChart2, Download, Upload, Wallet, TrendingUp, ArrowUpRight, ShoppingBag, Box } from "lucide-react"
+import { DollarSign, BarChart2, Download, Upload, TrendingUp, ArrowUpRight, ShoppingBag, Box } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
@@ -21,28 +20,22 @@ export default function Dashboard() {
     profitMonth: 0,
     revenueMonth: 0,
     debtIssuedToday: 0,
-    debtCollectedToday: 0,
   })
 
   const loadStats = useCallback(() => {
     const products = db.getProducts();
     const allSales = db.getSales();
-    const allPayments = db.getPayments();
     
     const todayStr = getLocalDateString();
     const currentMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
     
-    // 1. إحصائيات اليوم (مبيعات تمت اليوم)
+    // 1. إحصائيات اليوم (مبيعات اليوم)
     const salesToday = allSales.filter(s => s.date && s.date.trim() === todayStr);
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     const debtIssuedToday = salesToday.reduce((sum, s) => sum + (Number(s.debtAmount) || 0), 0);
 
-    // 2. تحصيلات الديون اليوم (مبالغ نقدية تم استلامها من عملاء اليوم لتسديد ديون سابقة)
-    const paymentsToday = allPayments.filter(p => p.date && p.date.trim() === todayStr);
-    const debtCollectedToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-    // 3. إحصائيات الشهر (تشمل مبيعات اليوم وكل مبيعات الشهر الحالي)
+    // 2. إحصائيات الشهر (تشمل مبيعات اليوم وكل مبيعات الشهر الحالي)
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
     const revenueMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
@@ -55,7 +48,6 @@ export default function Dashboard() {
       profitMonth: profitMonthTotal,
       revenueMonth: revenueMonthTotal,
       debtIssuedToday: debtIssuedToday,
-      debtCollectedToday: debtCollectedToday
     });
   }, []);
 
@@ -127,7 +119,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* الصف العلوي: إحصائيات اليوم الأساسية */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-none shadow-md bg-blue-50 dark:bg-blue-900/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between text-blue-800 dark:text-blue-300">
@@ -166,21 +159,9 @@ export default function Dashboard() {
             <p className="text-[10px] text-red-600/80">إجمالي الديون التي خرجت اليوم</p>
           </CardContent>
         </Card>
-
-        <Card className="border-none shadow-md bg-amber-50 dark:bg-amber-900/10">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center justify-between text-amber-800 dark:text-amber-300">
-              {t.debtCollectedToday}
-              <Wallet className="w-4 h-4 text-amber-600" />
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">مبالغ تم تحصيلها اليوم من ديون قديمة</p>
-          </CardContent>
-        </Card>
       </div>
 
+      {/* الصف السفلي: إحصائيات الشهر والمخزون */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t">
         <Card className="border-none shadow-sm bg-white dark:bg-slate-900/50">
           <CardHeader className="pb-2">
