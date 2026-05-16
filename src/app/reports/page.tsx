@@ -1,7 +1,8 @@
+
 "use client"
 
-import { useEffect, useState } from "react"
-import { db, Sale } from "@/lib/db"
+import { useEffect, useState, useCallback } from "react"
+import { db, Sale, DB_UPDATE_EVENT } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
@@ -20,17 +21,27 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  const loadSales = () => {
+  const loadSales = useCallback(() => {
     const allSales = db.getSales()
-    setSales(allSales.filter(s => s.date === selectedDate))
-    setSummary(null)
-  }
+    const filtered = allSales.filter(s => s.date === selectedDate)
+    setSales(filtered)
+    // لا نمسح الملخص هنا لكي يظل ظاهراً حتى يغير المستخدم التاريخ أو يطلب ملخص جديد
+  }, [selectedDate])
 
   useEffect(() => {
     loadSales()
-  }, [selectedDate])
+    
+    // إضافة مستمعي الأحداث لضمان تحديث الصفحة عند حدوث "مرتجع" أو أي تغيير
+    window.addEventListener(DB_UPDATE_EVENT, loadSales)
+    window.addEventListener('storage', loadSales)
+    
+    return () => {
+      window.removeEventListener(DB_UPDATE_EVENT, loadSales)
+      window.removeEventListener('storage', loadSales)
+    }
+  }, [loadSales])
 
-  const totalAmount = sales.reduce((sum, s) => sum + s.totalPrice, 0)
+  const totalAmount = sales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
 
   const handleAISummary = async () => {
     if (sales.length === 0) return
@@ -59,7 +70,7 @@ export default function ReportsPage() {
     if (confirm(t.confirmReturn)) {
       db.returnSale(saleId)
       toast({ title: t.success, description: t.saleReturned })
-      loadSales()
+      // لاحظ أن loadSales سيتم استدعاؤها تلقائياً عبر DB_UPDATE_EVENT
     }
   }
 
@@ -79,7 +90,10 @@ export default function ReportsPage() {
             id="date" 
             className="border-none shadow-none focus-visible:ring-0 w-[160px] bg-transparent"
             value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            onChange={(e) => {
+              setSelectedDate(e.target.value)
+              setSummary(null) // مسح الملخص عند تغيير التاريخ
+            }}
           />
         </div>
       </div>

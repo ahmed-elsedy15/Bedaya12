@@ -270,26 +270,31 @@ export const db = {
     const products = db.getProducts();
     const customers = db.getCustomers();
 
-    // 1. إعادة المنتج للمخزون
+    // 1. إعادة المنتج للمخزون - استخدام الرقم الصريح لتجنب مشاكل الجمع
     const pIndex = products.findIndex(p => p.id === sale.productId);
     if (pIndex !== -1) {
-      products[pIndex].quantity = (Number(products[pIndex].quantity) || 0) + (Number(sale.quantitySold) || 0);
+      const currentQty = Number(products[pIndex].quantity) || 0;
+      const returnedQty = Number(sale.quantitySold) || 0;
+      products[pIndex].quantity = currentQty + returnedQty;
     }
 
     // 2. تحديث مديونية العميل (خصم قيمة المنتج المرتجع من دينه)
     if (sale.paymentType === 'credit' && sale.customerId) {
       const cIndex = customers.findIndex(c => c.id === sale.customerId);
       if (cIndex !== -1) {
-        customers[cIndex].totalDebt = (Number(customers[cIndex].totalDebt) || 0) - (Number(sale.totalPrice) || 0);
+        const currentDebt = Number(customers[cIndex].totalDebt) || 0;
+        const returnAmount = Number(sale.totalPrice) || 0;
+        // لا نسمح بالدين أن يصبح سالباً في هذه العملية البسيطة
+        customers[cIndex].totalDebt = Math.max(0, currentDebt - returnAmount);
       }
     }
 
     // 3. حذف سجل البيع
-    allSales.splice(saleIndex, 1);
+    const updatedSales = allSales.filter(s => s.id !== saleId);
 
-    // 4. حفظ كل شيء مرة واحدة لضمان التزامن
+    // 4. حفظ كل شيء مرة واحدة لضمان التزامن الذري
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(allSales));
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
     
     // 5. إبلاغ الواجهة بالتحديث
