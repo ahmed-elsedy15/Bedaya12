@@ -131,7 +131,6 @@ export default function SalesEntryPage() {
 
   // Reactive calculations
   const finalTotal = cart.reduce((sum, item) => sum + item.total, 0)
-  const totalDiscounts = cart.reduce((sum, item) => sum + item.discount, 0)
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -435,58 +434,31 @@ export default function SalesEntryPage() {
           </Card>
         </div>
 
-        {/* Checkout Summary */}
+        {/* Checkout Summary - Simplified */}
         <div className="lg:col-span-1">
           <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden rounded-2xl h-full flex flex-col">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
             
-            <CardHeader className="pb-4">
+            <CardHeader className="pb-8">
               <CardTitle className="text-xl font-bold tracking-tight">{t.completeSale}</CardTitle>
-              <CardDescription className="text-slate-400 text-xs">{t.detailedBreakdown}</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6 relative flex-1">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center py-2 border-b border-white/10">
-                  <span className="text-slate-400 text-sm">{t.subtotal}</span>
-                  <span className="font-semibold font-mono">${(finalTotal + totalDiscounts).toFixed(2)}</span>
-                </div>
-                
-                <div className="flex justify-between items-center py-2 border-b border-white/10">
-                  <span className="text-slate-400 text-sm">{t.discount}</span>
-                  <span className="font-semibold font-mono text-green-400">-${totalDiscounts.toFixed(2)}</span>
-                </div>
-
-                <div className="pt-6 border-t border-white/10">
-                  <div className="flex justify-between items-end">
-                    <div className="flex flex-col">
-                      <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t.finalTotal}</span>
-                      {totalDiscounts > 0 && (
-                        <span className="text-[10px] text-green-400 font-bold animate-pulse">
-                          {t.tip2}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-4xl font-black text-accent font-mono tracking-tighter">
-                      ${finalTotal.toFixed(2)}
-                    </span>
-                  </div>
+            <CardContent className="space-y-8 relative flex-1 flex flex-col justify-center">
+              <div className="text-center space-y-2">
+                <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.finalTotal}</span>
+                <div className="text-6xl font-black text-accent font-mono tracking-tighter">
+                  ${finalTotal.toFixed(2)}
                 </div>
               </div>
               
-              <div className="mt-auto space-y-4">
+              <div className="mt-8">
                 <Button 
-                  className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-8 text-xl shadow-lg transition-transform active:scale-95 group rounded-xl" 
+                  className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-10 text-2xl shadow-lg transition-transform active:scale-95 group rounded-xl" 
                   disabled={cart.length === 0}
                   onClick={handleCompleteSale}
                 >
                   {t.completeSale}
-                  <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="ml-3 h-6 w-6 group-hover:translate-x-1 transition-transform" />
                 </Button>
-                
-                <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 font-medium">
-                  <Check className="h-3 w-3" />
-                  {t.tip2}
-                </div>
               </div>
             </CardContent>
           </Card>
