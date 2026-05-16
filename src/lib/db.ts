@@ -34,6 +34,7 @@ export interface Sale {
   customerName?: string;
   paymentType: 'cash' | 'credit';
   discount: number;
+  debtAmount?: number; // المبلغ الذي أضيف فعلياً للدين
 }
 
 const STORAGE_KEYS = {
@@ -70,6 +71,7 @@ export const db = {
   notify: () => {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
+      // إرسال حدث تخزين يدوي لضمان تحديث كل المكونات
       window.dispatchEvent(new Event('storage'));
     }
   },
@@ -102,6 +104,7 @@ export const db = {
         totalPrice: Number(s.totalPrice) || 0,
         profit: Number(s.profit) || 0,
         discount: Number(s.discount) || 0,
+        debtAmount: Number(s.debtAmount) || 0,
         timestamp: Number(s.timestamp) || Date.now()
       }));
     } catch (e) {
@@ -209,7 +212,7 @@ export const db = {
     db.saveCustomers(updated);
   },
 
-  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, skipDebtUpdate: boolean = false) => {
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0) => {
     const products = db.getProducts();
     const productIndex = products.findIndex(p => p.id === productId);
     if (productIndex === -1 || Number(products[productIndex].quantity) < Number(quantity)) {
@@ -219,22 +222,22 @@ export const db = {
     const product = products[productIndex];
     const qty = Number(quantity);
     const dsc = Number(discount) || 0;
+    const debt = Number(debtAmount) || 0;
     const sellingPrice = Number(product.sellingPrice) || 0;
     const purchasePrice = Number(product.purchasePrice) || 0;
     const totalPrice = (sellingPrice * qty) - dsc;
     const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
     products[productIndex].quantity = Number(products[productIndex].quantity) - qty;
-    db.saveProducts(products);
-
+    
     let customerName = undefined;
     if (customerId) {
       const customers = db.getCustomers();
       const customerIndex = customers.findIndex(c => c.id === customerId);
       if (customerIndex !== -1) {
         customerName = customers[customerIndex].name;
-        if (paymentType === 'credit' && !skipDebtUpdate) {
-          customers[customerIndex].totalDebt = (Number(customers[customerIndex].totalDebt) || 0) + totalPrice;
+        if (paymentType === 'credit' && debt > 0) {
+          customers[customerIndex].totalDebt = (Number(customers[customerIndex].totalDebt) || 0) + debt;
           db.saveCustomers(customers);
         }
       }
@@ -255,51 +258,52 @@ export const db = {
       customerId,
       customerName,
       paymentType,
-      discount: dsc
+      discount: dsc,
+      debtAmount: paymentType === 'credit' ? debt : 0
     };
-    db.saveSales([newSale, ...sales]);
+
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([newSale, ...sales]));
+    db.notify();
+    
     return newSale;
   },
 
   returnSale: (saleId: string) => {
-    // 1. جلب كل البيانات الحالية
     const allSales = db.getSales();
     const products = db.getProducts();
     const customers = db.getCustomers();
     
-    // 2. العثور على عملية البيع
     const saleIndex = allSales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return;
+    if (saleIndex === -1) return false;
+    
     const sale = allSales[saleIndex];
 
-    // 3. إعادة الكمية للمخزون
+    // 1. إعادة الكمية للمخزون
     const pIndex = products.findIndex(p => p.id === sale.productId);
     if (pIndex !== -1) {
-      const currentQty = Number(products[pIndex].quantity) || 0;
-      const returnedQty = Number(sale.quantitySold) || 0;
-      products[pIndex].quantity = currentQty + returnedQty;
+      products[pIndex].quantity = (Number(products[pIndex].quantity) || 0) + (Number(sale.quantitySold) || 0);
     }
 
-    // 4. تحديث مديونية العميل (إذا كانت العملية آجلة)
+    // 2. تحديث مديونية العميل
     if (sale.paymentType === 'credit' && sale.customerId) {
       const cIndex = customers.findIndex(c => c.id === sale.customerId);
       if (cIndex !== -1) {
-        const currentDebt = Number(customers[cIndex].totalDebt) || 0;
-        const returnAmount = Number(sale.totalPrice) || 0;
-        customers[cIndex].totalDebt = Math.max(0, currentDebt - returnAmount);
+        // نخصم مبلغ الدين الذي سُجل فعلياً عند البيع وليس كامل قيمة الفاتورة
+        const debtToReturn = Number(sale.debtAmount) || Number(sale.totalPrice);
+        customers[cIndex].totalDebt = Math.max(0, (Number(customers[cIndex].totalDebt) || 0) - debtToReturn);
       }
     }
 
-    // 5. حذف العملية من السجل
+    // 3. حذف العملية وحفظ الكل بشكل ذري
     const updatedSales = allSales.filter(s => s.id !== saleId);
 
-    // 6. الحفظ النهائي لكل شيء (تحديث ذري)
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
     
-    // 7. إخطار النظام بالتغيير
     db.notify();
+    return true;
   },
 
   importAll: (data: any) => {

@@ -21,7 +21,6 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  // تهيئة التاريخ في جانب العميل فقط لتجنب أخطاء الهيدرة
   useEffect(() => {
     const today = new Date();
     const year = today.getFullYear();
@@ -39,18 +38,11 @@ export default function ReportsPage() {
 
   useEffect(() => {
     loadSales()
-    
-    // الاستماع لأحداث التحديث من أي مكان في التطبيق
-    const handleUpdate = () => {
-      loadSales();
-    };
-
-    window.addEventListener(DB_UPDATE_EVENT, handleUpdate)
-    window.addEventListener('storage', handleUpdate)
-    
+    window.addEventListener(DB_UPDATE_EVENT, loadSales)
+    window.addEventListener('storage', loadSales)
     return () => {
-      window.removeEventListener(DB_UPDATE_EVENT, handleUpdate)
-      window.removeEventListener('storage', handleUpdate)
+      window.removeEventListener(DB_UPDATE_EVENT, loadSales)
+      window.removeEventListener('storage', loadSales)
     }
   }, [loadSales])
 
@@ -58,7 +50,6 @@ export default function ReportsPage() {
 
   const handleAISummary = async () => {
     if (sales.length === 0) return
-    
     setIsSummarizing(true)
     try {
       const result = await summarizeDailySales({
@@ -72,7 +63,6 @@ export default function ReportsPage() {
       })
       setSummary(result)
     } catch (error) {
-      console.error(error)
       setSummary("Failed to generate AI summary.")
     } finally {
       setIsSummarizing(false)
@@ -81,13 +71,11 @@ export default function ReportsPage() {
 
   const handleReturn = (saleId: string) => {
     if (confirm(t.confirmReturn)) {
-      try {
-        db.returnSale(saleId)
-        // إجبار الواجهة على التحديث فوراً دون انتظار الأحداث
-        loadSales();
+      if (db.returnSale(saleId)) {
         toast({ title: t.success, description: t.saleReturned })
-      } catch (error) {
-        toast({ title: t.error, description: "Failed to return sale.", variant: "destructive" })
+        loadSales();
+      } else {
+        toast({ title: t.error, description: "Sale not found", variant: "destructive" })
       }
     }
   }
@@ -101,11 +89,9 @@ export default function ReportsPage() {
         </div>
         
         <div className="flex items-center gap-3 bg-card p-2 rounded-lg border shadow-sm">
-          <CalendarIcon className={`h-4 w-4 text-primary ${t.lang === 'ar' ? 'mr-2' : 'ml-2'}`} />
-          <Label htmlFor="date" className="sr-only">Select Date</Label>
+          <CalendarIcon className="h-4 w-4 text-primary ml-2" />
           <Input 
             type="date" 
-            id="date" 
             className="border-none shadow-none focus-visible:ring-0 w-[160px] bg-transparent"
             value={selectedDate}
             onChange={(e) => {
@@ -125,11 +111,10 @@ export default function ReportsPage() {
                   <CardTitle>
                     {t.salesEntry} - {selectedDate ? new Date(selectedDate).toLocaleDateString(t.lang === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' }) : ""}
                   </CardTitle>
-                  <CardDescription className="text-primary-foreground/80">{t.detailedBreakdown}</CardDescription>
                 </div>
                 <div className="text-right">
                   <div className="text-3xl font-bold">${totalAmount.toFixed(2)}</div>
-                  <div className="text-xs opacity-80 uppercase tracking-wider font-semibold">{t.todayRevenue}</div>
+                  <div className="text-xs opacity-80 uppercase font-semibold">{t.todayRevenue}</div>
                 </div>
               </div>
             </CardHeader>
@@ -141,29 +126,26 @@ export default function ReportsPage() {
                     <TableHead>{t.product}</TableHead>
                     <TableHead>{t.qty}</TableHead>
                     <TableHead>{t.totalPrice}</TableHead>
-                    <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
+                    <TableHead className="text-right">{t.actions}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sales.length > 0 ? (
-                    sales.map(sale => (
-                      <TableRow key={sale.id}>
-                        <TableCell className="text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
-                        <TableCell className="font-medium">{sale.productName}</TableCell>
-                        <TableCell>{sale.quantitySold}</TableCell>
-                        <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
-                        <TableCell className={t.lang === 'ar' ? 'text-left' : 'text-right'}>
-                          <Button variant="ghost" size="icon" onClick={() => handleReturn(sale.id)} title={t.returnSale}>
-                            <RotateCcw className="h-4 w-4 text-orange-500" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-48 text-center text-muted-foreground">
-                        {t.noSales}
+                  {sales.map(sale => (
+                    <TableRow key={sale.id}>
+                      <TableCell className="text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
+                      <TableCell className="font-medium">{sale.productName}</TableCell>
+                      <TableCell>{sale.quantitySold}</TableCell>
+                      <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => handleReturn(sale.id)} title={t.returnSale}>
+                          <RotateCcw className="h-4 w-4 text-orange-500" />
+                        </Button>
                       </TableCell>
+                    </TableRow>
+                  ))}
+                  {sales.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="h-48 text-center text-muted-foreground">{t.noSales}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -182,40 +164,21 @@ export default function ReportsPage() {
               <CardDescription>{t.generateSummary}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {summary ? (
+              {summary && (
                 <div className="p-4 bg-card rounded-lg border border-accent/20 text-sm leading-relaxed animate-in fade-in slide-in-from-top-2">
                   {summary}
                 </div>
-              ) : (
-                <div className="p-8 text-center text-muted-foreground border-2 border-dashed rounded-lg">
-                  {sales.length > 0 ? t.aiPlaceholder : t.noData}
-                </div>
               )}
-              
               <Button 
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
+                className="w-full" 
                 disabled={sales.length === 0 || isSummarizing}
                 onClick={handleAISummary}
               >
-                {isSummarizing ? (
-                  <>
-                    <Loader2 className={`h-4 w-4 animate-spin ${t.lang === 'ar' ? 'ml-2' : 'mr-2'}`} />
-                    {t.analyzing}
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className={`h-4 w-4 ${t.lang === 'ar' ? 'ml-2' : 'mr-2'}`} />
-                    {t.summarizeDay}
-                  </>
-                )}
+                {isSummarizing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                {isSummarizing ? t.analyzing : t.summarizeDay}
               </Button>
             </CardContent>
           </Card>
-
-          <Button variant="outline" className="w-full" disabled={sales.length === 0}>
-            <Download className={`h-4 w-4 ${t.lang === 'ar' ? 'ml-2' : 'mr-2'}`} />
-            {t.exportCsv}
-          </Button>
         </div>
       </div>
     </div>
