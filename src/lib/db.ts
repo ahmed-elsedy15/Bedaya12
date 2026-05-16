@@ -78,15 +78,20 @@ export const db = {
 
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    const parsed = stored ? JSON.parse(stored) : [];
-    return parsed.map((p: any) => ({
-      ...p,
-      quantity: Number(p.quantity) || 0,
-      purchasePrice: Number(p.purchasePrice) || 0,
-      sellingPrice: Number(p.sellingPrice) || Number(p.price) || 0,
-      price: Number(p.sellingPrice) || Number(p.price) || 0
-    }));
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return parsed.map((p: any) => ({
+        ...p,
+        quantity: Number(p.quantity) || 0,
+        purchasePrice: Number(p.purchasePrice) || 0,
+        sellingPrice: Number(p.sellingPrice) || Number(p.price) || 0,
+        price: Number(p.sellingPrice) || Number(p.price) || 0
+      }));
+    } catch (e) {
+      console.error("Failed to parse products", e);
+      return [];
+    }
   },
 
   saveProducts: (products: Product[]) => {
@@ -96,16 +101,21 @@ export const db = {
 
   getSales: (): Sale[] => {
     if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(STORAGE_KEYS.SALES);
-    const parsed = stored ? JSON.parse(stored) : [];
-    return parsed.map((s: any) => ({
-      ...s,
-      quantitySold: Number(s.quantitySold) || 0,
-      totalPrice: Number(s.totalPrice) || 0,
-      profit: Number(s.profit) || 0,
-      discount: Number(s.discount) || 0,
-      timestamp: Number(s.timestamp) || Date.now()
-    }));
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SALES);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return parsed.map((s: any) => ({
+        ...s,
+        quantitySold: Number(s.quantitySold) || 0,
+        totalPrice: Number(s.totalPrice) || 0,
+        profit: Number(s.profit) || 0,
+        discount: Number(s.discount) || 0,
+        timestamp: Number(s.timestamp) || Date.now()
+      }));
+    } catch (e) {
+      console.error("Failed to parse sales", e);
+      return [];
+    }
   },
 
   saveSales: (sales: Sale[]) => {
@@ -115,12 +125,17 @@ export const db = {
 
   getCustomers: (): Customer[] => {
     if (typeof window === 'undefined') return [];
-    const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-    const parsed = stored ? JSON.parse(stored) : [];
-    return parsed.map((c: any) => ({
-      ...c,
-      totalDebt: Number(c.totalDebt) || 0
-    }));
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+      const parsed = stored ? JSON.parse(stored) : [];
+      return parsed.map((c: any) => ({
+        ...c,
+        totalDebt: Number(c.totalDebt) || 0
+      }));
+    } catch (e) {
+      console.error("Failed to parse customers", e);
+      return [];
+    }
   },
 
   saveCustomers: (customers: Customer[]) => {
@@ -136,7 +151,7 @@ export const db = {
       sellingPrice: Number(product.sellingPrice),
       quantity: Number(product.quantity),
       price: Number(product.sellingPrice),
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       createdAt: Date.now(),
     };
     db.saveProducts([newProduct, ...products]);
@@ -166,7 +181,7 @@ export const db = {
     const customers = db.getCustomers();
     const newCustomer: Customer = {
       ...customer,
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       totalDebt: 0,
       createdAt: Date.now(),
     };
@@ -196,7 +211,7 @@ export const db = {
     const totalPrice = (sellingPrice * qty) - dsc;
     const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
-    // تحديث المخزون
+    // تحديث المخزون باستخدام دالة موحدة
     db.updateProduct(productId, { quantity: Number(product.quantity) - qty });
 
     let customerName = undefined;
@@ -211,7 +226,7 @@ export const db = {
 
     const sales = db.getSales();
     const newSale: Sale = {
-      id: crypto.randomUUID(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       productId,
       productName: product.name,
       quantitySold: qty,
@@ -235,22 +250,13 @@ export const db = {
     const sale = sales.find(s => s.id === saleId);
     if (!sale) return;
 
-    // 1. إعادة الكمية للمخزون
+    // 1. إعادة الكمية للمخزون - استخدام دالة updateProduct لضمان التحديث الصحيح
     const products = db.getProducts();
-    let productUpdated = false;
-    const updatedProducts = products.map(p => {
-      if (p.id === sale.productId) {
-        productUpdated = true;
-        return { 
-          ...p, 
-          quantity: Number(p.quantity) + Number(sale.quantitySold) 
-        };
-      }
-      return p;
-    });
-
-    if (productUpdated) {
-      db.saveProducts(updatedProducts);
+    const product = products.find(p => p.id === sale.productId);
+    
+    if (product) {
+      const newQuantity = Number(product.quantity) + Number(sale.quantitySold);
+      db.updateProduct(sale.productId, { quantity: newQuantity });
     }
 
     // 2. تعديل مديونية العميل إذا كان البيع آجلاً
@@ -262,6 +268,7 @@ export const db = {
     const updatedSales = sales.filter(s => s.id !== saleId);
     db.saveSales(updatedSales);
     
+    // إرسال تنبيه نهائي للتأكد من تحديث كل الواجهات
     db.notify();
   },
 
