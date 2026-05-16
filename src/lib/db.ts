@@ -69,7 +69,7 @@ export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number
   const totalPrice = Number(sale.totalPrice) || 0;
   if (totalPrice <= 0) return 0;
   
-  // نسبة الربح في هذه الفاتورة
+  // نسبة الربح في هذه الفاتورة = الربح الكلي المتوقع / السعر الإجمالي للفاتورة
   const totalExpectedProfit = Number(sale.profit) || 0;
   const profitRatio = totalExpectedProfit / totalPrice;
   
@@ -172,6 +172,7 @@ export const db = {
     const customer = customers.find(c => c.id === id);
     if (!customer) return;
 
+    // إذا كان المبلغ بالسالب، يعني العميل يسدد دينه
     if (amount < 0) {
       const payments = db.getPayments();
       const newPayment: Payment = {
@@ -185,12 +186,12 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([newPayment, ...payments]));
     }
 
-    const updated = customers.map(c => (c.id === id ? { ...c, totalDebt: Number(c.totalDebt) + Number(amount) } : c));
+    const updated = customers.map(c => (c.id === id ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) + Number(amount)) } : c));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
     db.notify();
   },
 
-  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0, manualCustomerName?: string) => {
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0) => {
     const products = db.getProducts();
     const product = products.find(p => p.id === productId);
     if (!product || Number(product.quantity) < Number(quantity)) throw new Error('Insufficient stock');
@@ -201,7 +202,7 @@ export const db = {
     
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
-    let customerName = manualCustomerName;
+    let customerName = "";
     const customersList = db.getCustomers();
     
     if (customerId) {

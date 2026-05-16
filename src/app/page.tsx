@@ -23,45 +23,43 @@ export default function Dashboard() {
     debtCollectedToday: 0
   })
 
-  // دالة لحساب الربح المحقق لفترة معينة (يوم أو شهر)
+  // دالة لحساب الإحصائيات (الإيراد والمكسب الحقيقي) لفترة معينة
   const calculatePeriodStats = useCallback((sales: Sale[], payments: Payment[], startDatePrefix: string) => {
     let revenue = 0;
     let profit = 0;
     let debtCollected = 0;
 
-    // 1. الأرباح من المبيعات التي تمت في هذه الفترة (الجزء الكاش فقط)
+    // 1. حساب الإيراد والربح من مبيعات الفترة (الجزء الذي دفع كاش فقط)
     const periodSales = sales.filter(s => s.date && s.date.startsWith(startDatePrefix));
     periodSales.forEach(s => {
-      const cashAmount = s.totalPrice - s.debtAmount;
+      const cashAmount = s.totalPrice - s.debtAmount; // المبلغ الذي دخل الدرج من هذه الفاتورة
       if (cashAmount > 0) {
         revenue += cashAmount;
         profit += calculateRealizedProfitFromAmount(s, cashAmount);
       }
     });
 
-    // 2. الأرباح من الديون التي تم تحصيلها في هذه الفترة (حتى لو الفاتورة قديمة)
+    // 2. حساب الإيراد والربح من تحصيلات الديون التي تمت في هذه الفترة
     const periodPayments = payments.filter(p => p.date && p.date.startsWith(startDatePrefix));
-    const allSales = [...sales].sort((a, b) => a.timestamp - b.timestamp); // ترتيب زمني للفواتير (FIFO)
+    // نحتاج ترتيب الفواتير زمنياً لحساب الربح بنظام (الأقدم يسدد أولاً)
+    const allSales = [...sales].sort((a, b) => a.timestamp - b.timestamp);
 
     periodPayments.forEach(payment => {
       debtCollected += Number(payment.amount);
       revenue += Number(payment.amount);
       
-      // لمعرفة الجزء الربحي من هذا التحصيل، يجب توزيعه على فواتير العميل التي لم تسدد
+      // لتحديد "المكسب" من هذا التحصيل، نوزعه على فواتير العميل التي بها دين
       let remainingPayment = Number(payment.amount);
       const customerDebtSales = allSales.filter(s => s.customerId === payment.customerId && s.debtAmount > 0);
       
-      // منطق FIFO: تحصيل الديون يغطي أقدم الفواتير أولاً
       for (const sale of customerDebtSales) {
         if (remainingPayment <= 0) break;
-        
-        // كم دفع العميل سابقاً لهذه الفاتورة؟ (تقديرياً بناءً على رصيد الفاتورة الحالي)
         const amountToApply = Math.min(remainingPayment, sale.debtAmount);
         profit += calculateRealizedProfitFromAmount(sale, amountToApply);
         remainingPayment -= amountToApply;
       }
       
-      // إذا تبقى مبلغ بعد تغطية كل الفواتير (زيادة)، يُعتبر ربحاً صافياً (حالة نادرة)
+      // إذا كان التحصيل زائداً عن كل الديون (حالة نادرة)، نعتبره ربحاً صافياً
       if (remainingPayment > 0) {
         profit += remainingPayment;
       }
@@ -114,12 +112,12 @@ export default function Dashboard() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `salesphere_backup_${getLocalDateString()}.json`
+    a.download = `backup_${getLocalDateString()}.json`
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    toast({ title: t.success, description: "تم تصدير نسخة احتياطية بنجاح" })
+    toast({ title: t.success, description: t.exportData })
   }
 
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,7 +168,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.revenueToday.toFixed(2)}</div>
-            <p className="text-[10px] text-blue-600/80">إجمالي الكاش الداخل اليوم</p>
+            <p className="text-[10px] text-blue-600/80">إجمالي "الفلوس" اللي دخلت اليوم</p>
           </CardContent>
         </Card>
 
@@ -183,7 +181,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-[10px] text-green-600/80">صافي الربح من المبالغ المحصلة فعلياً</p>
+            <p className="text-[10px] text-green-600/80">"المكسب" الحقيقي من فلوس اليوم</p>
           </CardContent>
         </Card>
 
@@ -196,20 +194,20 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">سيولة مستردة من مديونيات قديمة</p>
+            <p className="text-[10px] text-amber-600/80">إجمالي ما سدده العملاء اليوم</p>
           </CardContent>
         </Card>
 
         <Card className="border-none shadow-md bg-purple-50 dark:bg-purple-900/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
-              صافي ربح الشهر
+              {t.monthProfit}
               <BarChart2 className="w-4 h-4 text-purple-600" />
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-purple-600/80">إجمالي الأرباح المحققة نقداً هذا الشهر</p>
+            <p className="text-[10px] text-purple-600/80">إجمالي "المكسب" المحقق هذا الشهر</p>
           </CardContent>
         </Card>
       </div>
@@ -237,11 +235,11 @@ export default function Dashboard() {
 
         <Card className="border-none shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">إيرادات الشهر المحصلة</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.monthRevenue}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-primary">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">إجمالي النقدية الداخلة هذا الشهر</p>
+            <p className="text-xs text-muted-foreground">إجمالي "الفلوس" اللي دخلت هذا الشهر</p>
           </CardContent>
         </Card>
       </div>
