@@ -56,7 +56,6 @@ const STORAGE_KEYS = {
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
 
-// دالة للحصول على التاريخ المحلي بتنسيق YYYY-MM-DD
 export const getLocalDateString = () => {
   const date = new Date();
   const year = date.getFullYear();
@@ -65,16 +64,16 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-// حساب الربح المحقق من "مبلغ مدفوع" لفاتورة معينة بناءً على نسبة الربح الأصلية
+/**
+ * دالة لحساب الربح المحقق من مبلغ معين تم دفعه لفاتورة.
+ * الربح المحقق = المبلغ المدفوع * (إجمالي ربح الفاتورة / إجمالي سعر الفاتورة)
+ */
 export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number) => {
   const totalPrice = Number(sale.totalPrice) || 0;
+  const totalProfit = Number(sale.profit) || 0;
   if (totalPrice <= 0) return 0;
   
-  // نسبة الربح في هذه الفاتورة = الربح الكلي المتوقع / السعر الإجمالي للفاتورة
-  const totalExpectedProfit = Number(sale.profit) || 0;
-  const profitRatio = totalExpectedProfit / totalPrice;
-  
-  // الربح المحقق من هذا المبلغ تحديداً
+  const profitRatio = totalProfit / totalPrice;
   return paidAmount * profitRatio;
 };
 

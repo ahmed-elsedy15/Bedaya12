@@ -23,72 +23,95 @@ export default function Dashboard() {
     debtCollectedToday: 0
   })
 
-  // دالة لحساب الإحصائيات (الإيراد والمكسب الحقيقي) لفترة معينة
-  const calculatePeriodStats = useCallback((sales: Sale[], payments: Payment[], startDatePrefix: string) => {
-    let revenue = 0;
-    let profit = 0;
-    let debtCollected = 0;
-
-    // 1. حساب الإيراد والربح من مبيعات الفترة (الجزء الذي دفع كاش فقط)
-    const periodSales = sales.filter(s => s.date && s.date.startsWith(startDatePrefix));
-    periodSales.forEach(s => {
-      const cashAmount = s.totalPrice - s.debtAmount; // المبلغ الذي دخل الدرج من هذه الفاتورة
-      if (cashAmount > 0) {
-        revenue += cashAmount;
-        profit += calculateRealizedProfitFromAmount(s, cashAmount);
-      }
-    });
-
-    // 2. حساب الإيراد والربح من تحصيلات الديون التي تمت في هذه الفترة
-    const periodPayments = payments.filter(p => p.date && p.date.startsWith(startDatePrefix));
-    // نحتاج ترتيب الفواتير زمنياً لحساب الربح بنظام (الأقدم يسدد أولاً)
-    const allSales = [...sales].sort((a, b) => a.timestamp - b.timestamp);
-
-    periodPayments.forEach(payment => {
-      debtCollected += Number(payment.amount);
-      revenue += Number(payment.amount);
-      
-      // لتحديد "المكسب" من هذا التحصيل، نوزعه على فواتير العميل التي بها دين
-      let remainingPayment = Number(payment.amount);
-      const customerDebtSales = allSales.filter(s => s.customerId === payment.customerId && s.debtAmount > 0);
-      
-      for (const sale of customerDebtSales) {
-        if (remainingPayment <= 0) break;
-        const amountToApply = Math.min(remainingPayment, sale.debtAmount);
-        profit += calculateRealizedProfitFromAmount(sale, amountToApply);
-        remainingPayment -= amountToApply;
-      }
-      
-      // إذا كان التحصيل زائداً عن كل الديون (حالة نادرة)، نعتبره ربحاً صافياً
-      if (remainingPayment > 0) {
-        profit += remainingPayment;
-      }
-    });
-
-    return { revenue, profit, debtCollected };
-  }, []);
-
   const loadStats = useCallback(() => {
     const products = db.getProducts();
-    const sales = db.getSales();
-    const payments = db.getPayments();
+    const allSales = [...db.getSales()].sort((a, b) => a.timestamp - b.timestamp); // ترتيب زمني للأقدمية
+    const allPayments = db.getPayments();
     
     const today = getLocalDateString();
     const currentMonthPrefix = today.substring(0, 7);
     
-    const todayData = calculatePeriodStats(sales, payments, today);
-    const monthData = calculatePeriodStats(sales, payments, currentMonthPrefix);
+    // حساب المديونيات المتبقية لكل فاتورة لمحاكاة سداد الربح بدقة
+    const salesRemainingDebt: Record<string, number> = {};
+    allSales.forEach(s => salesRemainingDebt[s.id] = Number(s.debtAmount) || 0);
+
+    let revenueToday = 0;
+    let profitToday = 0;
+    let debtCollectedToday = 0;
+    let revenueMonth = 0;
+    let profitMonth = 0;
+
+    // 1. معالجة المدفوعات التاريخية (FIFO) لتحديد ما تم سداده اليوم وفي الشهر
+    allPayments.sort((a, b) => a.timestamp - b.timestamp).forEach(payment => {
+      const isToday = payment.date === today;
+      const isThisMonth = payment.date && payment.date.startsWith(currentMonthPrefix);
+      
+      if (isToday) {
+        revenueToday += Number(payment.amount);
+        debtCollectedToday += Number(payment.amount);
+      }
+      if (isThisMonth) {
+        revenueMonth += Number(payment.amount);
+      }
+
+      let amountToDistribute = Number(payment.amount);
+      // ابحث عن فواتير هذا العميل التي بها مديونية
+      const customerDebtSales = allSales.filter(s => s.customerId === payment.customerId);
+      
+      for (const sale of customerDebtSales) {
+        if (amountToDistribute <= 0) break;
+        const currentDebtOnSale = salesRemainingDebt[sale.id];
+        if (currentDebtOnSale <= 0) continue;
+
+        const paidTowardsThisSale = Math.min(amountToDistribute, currentDebtOnSale);
+        
+        // حساب المكسب من هذا المبلغ تحديداً
+        const profitFromThisPayment = calculateRealizedProfitFromAmount(sale, paidTowardsThisSale);
+        
+        if (isToday) profitToday += profitFromThisPayment;
+        if (isThisMonth) profitMonth += profitFromThisPayment;
+
+        salesRemainingDebt[sale.id] -= paidTowardsThisSale;
+        amountToDistribute -= paidTowardsThisSale;
+      }
+      
+      // إذا دفع العميل مبلغاً زائداً عن ديونه، نعتبر الزيادة ربحاً صافياً
+      if (amountToDistribute > 0) {
+        if (isToday) profitToday += amountToDistribute;
+        if (isThisMonth) profitMonth += amountToDistribute;
+      }
+    });
+
+    // 2. معالجة مبيعات اليوم والشهر (الجزء الكاش فقط)
+    allSales.forEach(sale => {
+      const isToday = sale.date === today;
+      const isThisMonth = sale.date && sale.date.startsWith(currentMonthPrefix);
+      
+      const cashAmount = sale.totalPrice - sale.debtAmount;
+      if (cashAmount > 0) {
+        const profitFromCash = calculateRealizedProfitFromAmount(sale, cashAmount);
+        
+        if (isToday) {
+          revenueToday += cashAmount;
+          profitToday += profitFromCash;
+        }
+        if (isThisMonth) {
+          revenueMonth += cashAmount;
+          profitMonth += profitFromCash;
+        }
+      }
+    });
 
     setStats({
       totalProducts: products.length,
-      totalSalesToday: sales.filter(s => s.date === today).length,
-      revenueToday: todayData.revenue,
-      profitToday: todayData.profit,
-      profitMonth: monthData.profit,
-      revenueMonth: monthData.revenue,
-      debtCollectedToday: todayData.debtCollected
+      totalSalesToday: allSales.filter(s => s.date === today).length,
+      revenueToday,
+      profitToday,
+      profitMonth,
+      revenueMonth,
+      debtCollectedToday
     });
-  }, [calculatePeriodStats]);
+  }, []);
 
   useEffect(() => {
     loadStats()
@@ -168,7 +191,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.revenueToday.toFixed(2)}</div>
-            <p className="text-[10px] text-blue-600/80">إجمالي "الفلوس" اللي دخلت اليوم</p>
+            <p className="text-[10px] text-blue-600/80">إجمالي السيولة (كاش + ديون محصلة)</p>
           </CardContent>
         </Card>
 
@@ -181,7 +204,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-[10px] text-green-600/80">"المكسب" الحقيقي من فلوس اليوم</p>
+            <p className="text-[10px] text-green-600/80">المكسب الحقيقي من التحصيل النقدي اليوم</p>
           </CardContent>
         </Card>
 
@@ -194,7 +217,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">إجمالي ما سدده العملاء اليوم</p>
+            <p className="text-[10px] text-amber-600/80">إجمالي ما سدده العملاء من حسابهم</p>
           </CardContent>
         </Card>
 
@@ -207,7 +230,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-purple-600/80">إجمالي "المكسب" المحقق هذا الشهر</p>
+            <p className="text-[10px] text-purple-600/80">صافي الربح الحقيقي المحقق هذا الشهر</p>
           </CardContent>
         </Card>
       </div>
@@ -239,7 +262,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold text-primary">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">إجمالي "الفلوس" اللي دخلت هذا الشهر</p>
+            <p className="text-xs text-muted-foreground">إجمالي السيولة المحصلة هذا الشهر</p>
           </CardContent>
         </Card>
       </div>
