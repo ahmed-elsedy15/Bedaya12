@@ -146,7 +146,7 @@ export const db = {
       sellingPrice: Number(product.sellingPrice),
       quantity: Number(product.quantity),
       price: Number(product.sellingPrice),
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
       createdAt: Date.now(),
     };
     db.saveProducts([newProduct, ...products]);
@@ -178,7 +178,7 @@ export const db = {
     const customers = db.getCustomers();
     const newCustomer: Customer = {
       ...customer,
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
       totalDebt: 0,
       createdAt: Date.now(),
     };
@@ -224,7 +224,6 @@ export const db = {
     const totalPrice = (sellingPrice * qty) - dsc;
     const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
-    // تحديث المخزون بالخصم
     products[productIndex].quantity = Number(products[productIndex].quantity) - qty;
     db.saveProducts(products);
 
@@ -243,7 +242,7 @@ export const db = {
 
     const sales = db.getSales();
     const newSale: Sale = {
-      id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
+      id: crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2, 15),
       productId,
       productName: product.name,
       quantitySold: qty,
@@ -268,23 +267,33 @@ export const db = {
     if (saleIndex === -1) return;
     
     const sale = allSales[saleIndex];
-
-    // 1. إعادة الكمية للمخزون (إضافة للكمية الحالية وليس استبدالها)
     const products = db.getProducts();
+    const customers = db.getCustomers();
+
+    // 1. إعادة المنتج للمخزون
     const pIndex = products.findIndex(p => p.id === sale.productId);
     if (pIndex !== -1) {
-      products[pIndex].quantity = Number(products[pIndex].quantity) + Number(sale.quantitySold);
-      db.saveProducts(products);
+      products[pIndex].quantity = (Number(products[pIndex].quantity) || 0) + (Number(sale.quantitySold) || 0);
     }
 
-    // 2. تعديل مديونية العميل إذا كان البيع آجلاً
+    // 2. تحديث مديونية العميل (خصم قيمة المنتج المرتجع من دينه)
     if (sale.paymentType === 'credit' && sale.customerId) {
-      db.updateCustomerDebt(sale.customerId, -Number(sale.totalPrice));
+      const cIndex = customers.findIndex(c => c.id === sale.customerId);
+      if (cIndex !== -1) {
+        customers[cIndex].totalDebt = (Number(customers[cIndex].totalDebt) || 0) - (Number(sale.totalPrice) || 0);
+      }
     }
 
     // 3. حذف سجل البيع
     allSales.splice(saleIndex, 1);
-    db.saveSales(allSales);
+
+    // 4. حفظ كل شيء مرة واحدة لضمان التزامن
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(allSales));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
+    
+    // 5. إبلاغ الواجهة بالتحديث
+    db.notify();
   },
 
   importAll: (data: any) => {
