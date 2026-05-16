@@ -64,22 +64,17 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-export const getRealizedSaleProfit = (sale: Sale) => {
+// حساب الربح المحقق من "مبلغ مدفوع" لفاتورة معينة
+export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number) => {
   const totalPrice = Number(sale.totalPrice) || 0;
-  if (totalPrice === 0) return 0;
+  if (totalPrice <= 0) return 0;
   
-  const debt = Number(sale.debtAmount) || 0;
-  const paidCash = totalPrice - debt;
-  const ratio = paidCash / totalPrice;
-  
+  // نسبة الربح في هذه الفاتورة
   const totalExpectedProfit = Number(sale.profit) || 0;
-  return totalExpectedProfit * ratio;
-};
-
-export const getRealizedSaleRevenue = (sale: Sale) => {
-  const totalPrice = Number(sale.totalPrice) || 0;
-  const debt = Number(sale.debtAmount) || 0;
-  return totalPrice - debt;
+  const profitRatio = totalExpectedProfit / totalPrice;
+  
+  // الربح المحقق من هذا المبلغ تحديداً
+  return paidAmount * profitRatio;
 };
 
 export const db = {
@@ -254,12 +249,10 @@ export const db = {
     const products = db.getProducts();
     const customers = db.getCustomers();
 
-    // 1. إعادة البضاعة للمخزون
     const updatedProducts = products.map(p => 
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
-    // 2. خصم مديونية العميل
     let updatedCustomers = [...customers];
     if (sale.customerId && Number(sale.debtAmount) > 0) {
       updatedCustomers = customers.map(c => 
@@ -267,7 +260,6 @@ export const db = {
       );
     }
 
-    // 3. حذف العملية
     const updatedSales = sales.filter(s => s.id !== saleId);
 
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
