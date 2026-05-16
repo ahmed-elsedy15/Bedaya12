@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { db, Customer, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2 } from "lucide-react"
+import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2, Wallet } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -98,6 +98,11 @@ export default function CustomersPage() {
   )
 
   const totalDebt = customers.reduce((sum, c) => sum + (Number(c.totalDebt) || 0), 0)
+
+  // حساب المديونية المتبقية للعرض في النافذة
+  const currentTotalDebt = Number(selectedCustomer?.totalDebt) || 0;
+  const currentPayAmount = parseFloat(payAmount) || 0;
+  const remainingDebtAmount = Math.max(0, currentTotalDebt - currentPayAmount);
 
   return (
     <div className="p-8 space-y-8">
@@ -207,11 +212,13 @@ export default function CustomersPage() {
                       <Button 
                         variant="outline" 
                         size="sm"
+                        className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
                         onClick={() => {
                           setSelectedCustomer(customer)
                           setIsPayModalOpen(true)
                         }}
                       >
+                        <Wallet className="h-4 w-4 mr-2" />
                         {t.payDebt}
                       </Button>
                     )}
@@ -234,27 +241,47 @@ export default function CustomersPage() {
           <DialogHeader>
             <DialogTitle>{t.payDebt} - {selectedCustomer?.name}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label>{t.totalDebt}</Label>
-              <div className="text-xl font-bold text-red-600">
-                ${(Number(selectedCustomer?.totalDebt) || 0).toFixed(2)}
+          <div className="grid gap-6 py-4">
+            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground uppercase">{t.totalDebt}</Label>
+                <div className="text-xl font-bold text-red-600">
+                  ${currentTotalDebt.toFixed(2)}
+                </div>
+              </div>
+              <div className="h-10 w-px bg-border mx-4" />
+              <div className="grid gap-1 text-right">
+                <Label className="text-xs text-muted-foreground uppercase">{t.remainingDebt}</Label>
+                <div className={`text-xl font-bold ${remainingDebtAmount > 0 ? 'text-orange-600' : 'text-green-600'}`}>
+                  ${remainingDebtAmount.toFixed(2)}
+                </div>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="payAmount">{t.amountToPay}</Label>
-              <Input 
-                id="payAmount" 
-                type="number"
-                value={payAmount}
-                onChange={(e) => setPayAmount(e.target.value)}
-                placeholder="0.00"
-              />
+            
+            <div className="grid gap-3">
+              <Label htmlFor="payAmount" className="font-bold">{t.amountToPay}</Label>
+              <div className="relative">
+                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="payAmount" 
+                  type="number"
+                  className="pl-9 h-12 text-lg font-bold"
+                  value={payAmount}
+                  onChange={(e) => setPayAmount(e.target.value)}
+                  placeholder="0.00"
+                  autoFocus
+                />
+              </div>
+              <p className="text-xs text-muted-foreground italic">
+                {t.tip2}
+              </p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPayModalOpen(false)}>{t.cancel}</Button>
-            <Button onClick={handlePayDebt}>{t.save}</Button>
+            <Button onClick={handlePayDebt} className="bg-green-600 hover:bg-green-700 text-white font-bold px-8">
+              {t.save}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
