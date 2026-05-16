@@ -90,6 +90,8 @@ export const translations = {
     importData: "Import Backup",
     importSuccess: "Data imported successfully!",
     importError: "Failed to import data. Invalid file.",
+    discount: "Discount",
+    finalTotal: "Final Total",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -182,6 +184,8 @@ export const translations = {
     importData: "استيراد نسخة احتياطية",
     importSuccess: "تم استعادة البيانات بنجاح!",
     importError: "فشل الاستيراد. الملف غير صالح.",
+    discount: "الخصم",
+    finalTotal: "الإجمالي النهائي",
   }
 };
 

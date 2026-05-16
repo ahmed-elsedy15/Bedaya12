@@ -33,6 +33,7 @@ export interface Sale {
   customerId?: string;
   customerName?: string;
   paymentType: 'cash' | 'credit';
+  discount: number;
 }
 
 const STORAGE_KEYS = {
@@ -52,13 +53,13 @@ export const getLocalDateString = () => {
 export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   if (typeof sale.profit === 'number' && sale.profit !== 0) return Number(sale.profit);
   if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
-    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * sale.quantitySold;
+    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * sale.quantitySold - (sale.discount || 0);
   }
   const product = products.find(p => p.id === sale.productId);
   if (product) {
     const sell = Number(product.sellingPrice) || Number(product.price) || 0;
     const buy = Number(product.purchasePrice) || 0;
-    return (sell - buy) * sale.quantitySold;
+    return (sell - buy) * sale.quantitySold - (sale.discount || 0);
   }
   return 0;
 };
@@ -148,15 +149,15 @@ export const db = {
     db.saveCustomers(updated);
   },
 
-  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string) => {
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0) => {
     const products = db.getProducts();
     const product = products.find((p) => p.id === productId);
     if (!product || product.quantity < quantity) throw new Error('Insufficient stock');
 
     const sellingPrice = Number(product.sellingPrice) || 0;
     const purchasePrice = Number(product.purchasePrice) || 0;
-    const totalPrice = sellingPrice * quantity;
-    const profit = (sellingPrice - purchasePrice) * quantity;
+    const totalPrice = (sellingPrice * quantity) - discount;
+    const profit = ((sellingPrice - purchasePrice) * quantity) - discount;
 
     db.updateProduct(productId, { quantity: product.quantity - quantity });
 
@@ -185,6 +186,7 @@ export const db = {
       customerId,
       customerName,
       paymentType,
+      discount
     };
     db.saveSales([newSale, ...sales]);
     return newSale;
