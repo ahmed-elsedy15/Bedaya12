@@ -1,3 +1,4 @@
+
 "use client"
 
 export interface Product {
@@ -52,13 +53,13 @@ export const getLocalDateString = () => {
 export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   if (typeof sale.profit === 'number' && sale.profit !== 0) return Number(sale.profit);
   if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
-    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * sale.quantitySold - (sale.discount || 0);
+    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
   }
   const product = products.find(p => p.id === sale.productId);
   if (product) {
     const sell = Number(product.sellingPrice) || Number(product.price) || 0;
     const buy = Number(product.purchasePrice) || 0;
-    return (sell - buy) * sale.quantitySold - (sale.discount || 0);
+    return (sell - buy) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
   }
   return 0;
 };
@@ -67,7 +68,15 @@ export const db = {
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    // التأكد من أن الكميات أرقام
+    return parsed.map((p: any) => ({
+      ...p,
+      quantity: Number(p.quantity) || 0,
+      purchasePrice: Number(p.purchasePrice) || 0,
+      sellingPrice: Number(p.sellingPrice) || Number(p.price) || 0,
+      price: Number(p.sellingPrice) || Number(p.price) || 0
+    }));
   },
 
   saveProducts: (products: Product[]) => {
@@ -89,7 +98,11 @@ export const db = {
   getCustomers: (): Customer[] => {
     if (typeof window === 'undefined') return [];
     const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-    return stored ? JSON.parse(stored) : [];
+    const parsed = stored ? JSON.parse(stored) : [];
+    return parsed.map((c: any) => ({
+      ...c,
+      totalDebt: Number(c.totalDebt) || 0
+    }));
   },
 
   saveCustomers: (customers: Customer[]) => {
@@ -101,7 +114,10 @@ export const db = {
     const products = db.getProducts();
     const newProduct: Product = {
       ...product,
-      price: product.sellingPrice,
+      purchasePrice: Number(product.purchasePrice),
+      sellingPrice: Number(product.sellingPrice),
+      quantity: Number(product.quantity),
+      price: Number(product.sellingPrice),
       id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
@@ -114,7 +130,8 @@ export const db = {
     const updated = products.map((p) => {
       if (p.id === id) {
         const merged = { ...p, ...updates };
-        if (updates.sellingPrice !== undefined) merged.price = updates.sellingPrice;
+        if (updates.sellingPrice !== undefined) merged.price = Number(updates.sellingPrice);
+        if (updates.quantity !== undefined) merged.quantity = Number(updates.quantity);
         return merged;
       }
       return p;
@@ -142,7 +159,7 @@ export const db = {
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
     const updated = customers.map(c => {
-      if (c.id === id) return { ...c, totalDebt: (Number(c.totalDebt) || 0) + amount };
+      if (c.id === id) return { ...c, totalDebt: (Number(c.totalDebt) || 0) + Number(amount) };
       return c;
     });
     db.saveCustomers(updated);
@@ -151,14 +168,18 @@ export const db = {
   recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0) => {
     const products = db.getProducts();
     const product = products.find((p) => p.id === productId);
-    if (!product || product.quantity < quantity) throw new Error('Insufficient stock');
+    if (!product || Number(product.quantity) < Number(quantity)) throw new Error('Insufficient stock');
 
     const sellingPrice = Number(product.sellingPrice) || 0;
     const purchasePrice = Number(product.purchasePrice) || 0;
-    const totalPrice = (sellingPrice * quantity) - discount;
-    const profit = ((sellingPrice - purchasePrice) * quantity) - discount;
+    const qty = Number(quantity);
+    const dsc = Number(discount) || 0;
+    
+    const totalPrice = (sellingPrice * qty) - dsc;
+    const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
-    db.updateProduct(productId, { quantity: product.quantity - quantity });
+    // تحديث المخزون
+    db.updateProduct(productId, { quantity: Number(product.quantity) - qty });
 
     let customerName = undefined;
     if (customerId) {
@@ -175,7 +196,7 @@ export const db = {
       id: crypto.randomUUID(),
       productId,
       productName: product.name,
-      quantitySold: quantity,
+      quantitySold: qty,
       purchasePriceAtSale: purchasePrice,
       sellingPriceAtSale: sellingPrice,
       totalPrice,
@@ -185,7 +206,7 @@ export const db = {
       customerId,
       customerName,
       paymentType,
-      discount
+      discount: dsc
     };
     db.saveSales([newSale, ...sales]);
     return newSale;
@@ -196,21 +217,30 @@ export const db = {
     const sale = sales.find(s => s.id === saleId);
     if (!sale) return;
 
-    // 1. Restore product quantity
+    // 1. إعادة الكمية للمخزون
     const products = db.getProducts();
-    const product = products.find(p => p.id === sale.productId);
-    if (product) {
-      db.updateProduct(sale.productId, { quantity: product.quantity + sale.quantitySold });
-    }
+    const updatedProducts = products.map(p => {
+      if (p.id === sale.productId) {
+        return { 
+          ...p, 
+          quantity: Number(p.quantity) + Number(sale.quantitySold) 
+        };
+      }
+      return p;
+    });
+    db.saveProducts(updatedProducts);
 
-    // 2. Reduce customer debt if it was a credit sale
+    // 2. تعديل مديونية العميل إذا كان البيع آجلاً
     if (sale.paymentType === 'credit' && sale.customerId) {
-      db.updateCustomerDebt(sale.customerId, -sale.totalPrice);
+      db.updateCustomerDebt(sale.customerId, -Number(sale.totalPrice));
     }
 
-    // 3. Remove the sale record
+    // 3. حذف سجل البيع
     const updatedSales = sales.filter(s => s.id !== saleId);
     db.saveSales(updatedSales);
+    
+    // إرسال حدث للتنبيه بوجود تغيير
+    window.dispatchEvent(new CustomEvent('storage'));
   },
 
   importAll: (data: any) => {
