@@ -1,6 +1,21 @@
 
 "use client"
 
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where,
+  onSnapshot,
+  writeBatch
+} from 'firebase/firestore';
+import { db_firestore, auth } from './firebase';
+import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+
 export interface Product {
   id: string;
   name: string;
@@ -63,6 +78,18 @@ export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   return 0;
 };
 
+// تهيئة الدخول المجهول لضمان وجود UID للمزامنة
+if (typeof window !== 'undefined') {
+  onAuthStateChanged(auth, (user) => {
+    if (!user) {
+      signInAnonymously(auth).catch(console.error);
+    } else {
+      // مزامنة البيانات عند تسجيل الدخول
+      db.syncWithCloud();
+    }
+  });
+}
+
 export const db = {
   getProducts: (): Product[] => {
     if (typeof window === 'undefined') return [];
@@ -73,6 +100,17 @@ export const db = {
   saveProducts: (products: Product[]) => {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     window.dispatchEvent(new CustomEvent('storage'));
+    
+    // المزامنة التلقائية مع السحاب
+    const user = auth.currentUser;
+    if (user) {
+      const batch = writeBatch(db_firestore);
+      products.forEach(p => {
+        const ref = doc(db_firestore, `users/${user.uid}/data/products`, p.id);
+        batch.set(ref, p);
+      });
+      batch.commit().catch(console.error);
+    }
   },
 
   getSales: (): Sale[] => {
@@ -84,6 +122,17 @@ export const db = {
   saveSales: (sales: Sale[]) => {
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
     window.dispatchEvent(new CustomEvent('storage'));
+
+    const user = auth.currentUser;
+    if (user) {
+      const batch = writeBatch(db_firestore);
+      // لمحدودية الـ Batch (500 عملية)، نرسل آخر 100 فقط أو نستخدم طريقة أخرى
+      sales.slice(0, 100).forEach(s => {
+        const ref = doc(db_firestore, `users/${user.uid}/data/sales`, s.id);
+        batch.set(ref, s);
+      });
+      batch.commit().catch(console.error);
+    }
   },
 
   getCustomers: (): Customer[] => {
@@ -95,6 +144,16 @@ export const db = {
   saveCustomers: (customers: Customer[]) => {
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
     window.dispatchEvent(new CustomEvent('storage'));
+
+    const user = auth.currentUser;
+    if (user) {
+      const batch = writeBatch(db_firestore);
+      customers.forEach(c => {
+        const ref = doc(db_firestore, `users/${user.uid}/data/customers`, c.id);
+        batch.set(ref, c);
+      });
+      batch.commit().catch(console.error);
+    }
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -125,6 +184,11 @@ export const db = {
   deleteProduct: (id: string) => {
     const products = db.getProducts();
     db.saveProducts(products.filter((p) => p.id !== id));
+    
+    const user = auth.currentUser;
+    if (user) {
+      deleteDoc(doc(db_firestore, `users/${user.uid}/data/products`, id)).catch(console.error);
+    }
   },
 
   addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'totalDebt'>) => {
@@ -190,10 +254,36 @@ export const db = {
     return newSale;
   },
 
-  clearLocalData: () => {
-    localStorage.removeItem(STORAGE_KEYS.PRODUCTS);
-    localStorage.removeItem(STORAGE_KEYS.SALES);
-    localStorage.removeItem(STORAGE_KEYS.CUSTOMERS);
-    window.dispatchEvent(new CustomEvent('storage'));
+  syncWithCloud: async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+      // سحب المنتجات
+      const pSnap = await getDocs(collection(db_firestore, `users/${user.uid}/data/products`));
+      const cloudProducts = pSnap.docs.map(d => d.data() as Product);
+      if (cloudProducts.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(cloudProducts));
+      }
+
+      // سحب العملاء
+      const cSnap = await getDocs(collection(db_firestore, `users/${user.uid}/data/customers`));
+      const cloudCustomers = cSnap.docs.map(d => d.data() as Customer);
+      if (cloudCustomers.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(cloudCustomers));
+      }
+
+      // سحب المبيعات
+      const sSnap = await getDocs(collection(db_firestore, `users/${user.uid}/data/sales`));
+      const cloudSales = sSnap.docs.map(d => d.data() as Sale).sort((a,b) => b.timestamp - a.timestamp);
+      if (cloudSales.length > 0) {
+        localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(cloudSales));
+      }
+
+      window.dispatchEvent(new CustomEvent('storage'));
+      window.dispatchEvent(new CustomEvent('cloud-sync-complete'));
+    } catch (e) {
+      console.error("Cloud sync error:", e);
+    }
   }
 };
