@@ -43,9 +43,9 @@ export default function Dashboard() {
 
     // الإيرادات اليوم = الكاش من المبيعات + تحصيلات الديون
     const totalRevenueToday = revenueFromSalesToday + debtCollectedToday
-    // الربح اليوم = ربح مبيعات اليوم المحقق (باعتبار تحصيل الديون القديمة يغطي مبيعات قديمة تم حساب ربحها مسبقاً أو سيتم تسويتها)
-    // لتبسيط الأمر للمحل الصغير: الربح المحقق اليوم هو ربح البضاعة التي خرجت اليوم وتم دفع ثمنها + أي تحصيل ديون نعتبره إيراد صافي أو نوزعه
-    // سنعتمد هنا: الربح = الأرباح المحققة من مبيعات اليوم + تحصيلات الديون (كمبلغ نقدى داخل)
+    
+    // الربح اليوم = الأرباح المحققة من مبيعات اليوم + تحصيلات الديون
+    // نعتبر تحصيل الدين كربح محقق لأنه يمثل تدفقاً نقدياً دخل النشاط لتغطية بضاعة تم حساب تكلفتها مسبقاً
     const totalProfitToday = profitFromSalesToday + debtCollectedToday 
 
     // حسابات الشهر
@@ -197,7 +197,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">${stats.revenueToday.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">{t.dailyIncome} (Cash)</p>
+            <p className="text-xs text-muted-foreground">{t.dailyIncome} (كاش)</p>
           </CardContent>
         </Card>
 
@@ -208,18 +208,18 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-xs text-green-600/80 dark:text-green-400/80">{t.salesProfit} (Realized)</p>
+            <p className="text-xs text-green-600/80 dark:text-green-400/80">صافي الأرباح المحصلة فعلياً</p>
           </CardContent>
         </Card>
 
         <Card className="border-none shadow-md bg-amber-50/50 dark:bg-amber-900/10">
           <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-            <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">{t.debtCleared}</CardTitle>
+            <CardTitle className="text-sm font-medium text-amber-700 dark:text-amber-400">تحصيل ديون قديمة</CardTitle>
             <Wallet className="w-4 h-4 text-amber-600 dark:text-amber-400" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-xs text-amber-600/80 dark:text-amber-400/80">Collected from debt today</p>
+            <p className="text-xs text-amber-600/80 dark:text-amber-400/80">المبالغ التي استلمتها من العملاء اليوم</p>
           </CardContent>
         </Card>
 
@@ -230,7 +230,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-xs text-blue-600/80 dark:text-blue-400/80">{t.totalMonthRevenue} (Cash Only)</p>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80">{t.totalMonthRevenue} (كاش)</p>
           </CardContent>
         </Card>
       </div>

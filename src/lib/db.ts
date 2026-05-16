@@ -217,7 +217,6 @@ export const db = {
       if (customer) {
         customerName = customer.name;
         if (paymentType === 'credit' && debt > 0) {
-          // تحديث الديون بدون تسجيل "دفعة" لأن هذا "تسجيل دين" وليس "تسديد"
           const updatedCusts = customersList.map(c => (c.id === customerId ? { ...c, totalDebt: Number(c.totalDebt) + debt } : c));
           localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCusts));
         }
