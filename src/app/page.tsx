@@ -21,7 +21,8 @@ export default function Dashboard() {
     profitMonth: 0,
     revenueMonth: 0,
     debtIssuedToday: 0,
-    debtCollectedToday: 0
+    debtCollectedToday: 0,
+    revenueMonthTotal: 0
   })
 
   const loadStats = useCallback(() => {
@@ -32,34 +33,31 @@ export default function Dashboard() {
     const today = getLocalDateString();
     const currentMonthPrefix = today.substring(0, 7);
     
-    // إحصائيات اليوم
+    // إحصائيات اليوم (تعتمد على المبيعات التي تمت اليوم)
     const salesToday = allSales.filter(s => s.date === today);
+    const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     const debtIssuedToday = salesToday.reduce((sum, s) => sum + (Number(s.debtAmount) || 0), 0);
-    const cashFromSalesToday = salesToday.reduce((sum, s) => sum + ( (Number(s.totalPrice) || 0) - (Number(s.debtAmount) || 0) ), 0);
 
+    // تحصيلات الديون اليوم (سيولة نقدية منفصلة)
     const paymentsToday = allPayments.filter(p => p.date === today);
     const debtCollectedToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    const revenueToday = cashFromSalesToday + debtCollectedToday;
-
     // إحصائيات الشهر
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
+    const revenueMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitMonth = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
-    
-    const cashFromSalesMonth = salesMonth.reduce((sum, s) => sum + ( (Number(s.totalPrice) || 0) - (Number(s.debtAmount) || 0) ), 0);
-    const debtCollectedMonth = allPayments.filter(p => p.date && p.date.startsWith(currentMonthPrefix)).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-    const revenueMonth = cashFromSalesMonth + debtCollectedMonth;
 
     setStats({
       totalProducts: products.length,
       totalSalesToday: salesToday.length,
-      revenueToday: isNaN(revenueToday) ? 0 : revenueToday,
-      profitToday: isNaN(profitToday) ? 0 : profitToday,
-      profitMonth: isNaN(profitMonth) ? 0 : profitMonth,
-      revenueMonth: isNaN(revenueMonth) ? 0 : revenueMonth,
-      debtIssuedToday: isNaN(debtIssuedToday) ? 0 : debtIssuedToday,
-      debtCollectedToday: isNaN(debtCollectedToday) ? 0 : debtCollectedToday
+      revenueToday: revenueToday,
+      profitToday: profitToday,
+      profitMonth: profitMonth,
+      revenueMonth: revenueMonthTotal,
+      debtIssuedToday: debtIssuedToday,
+      debtCollectedToday: debtCollectedToday,
+      revenueMonthTotal: revenueMonthTotal
     });
   }, []);
 
@@ -141,7 +139,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${stats.revenueToday.toFixed(2)}</div>
-            <p className="text-[10px] text-blue-600/80">إجمالي السيولة اليوم (كاش + محصل)</p>
+            <p className="text-[10px] text-blue-600/80">إجمالي قيمة مبيعات اليوم (كاش + آجل)</p>
           </CardContent>
         </Card>
 
@@ -154,7 +152,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-[10px] text-green-600/80">صافي ربح مبيعات اليوم (كاش وديون)</p>
+            <p className="text-[10px] text-green-600/80">صافي ربح مبيعات اليوم</p>
           </CardContent>
         </Card>
 
@@ -167,7 +165,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700 dark:text-red-400">${stats.debtIssuedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-red-600/80">إجمالي الديون الصادرة اليوم</p>
+            <p className="text-[10px] text-red-600/80">المبالغ التي خرجت كديون اليوم</p>
           </CardContent>
         </Card>
 
@@ -180,7 +178,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">إجمالي المبالغ المحصلة اليوم</p>
+            <p className="text-[10px] text-amber-600/80">ديون قديمة تم تحصيلها اليوم (كاش)</p>
           </CardContent>
         </Card>
       </div>
@@ -221,7 +219,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-slate-400">إجمالي السيولة المحصلة هذا الشهر</p>
+            <p className="text-[10px] text-slate-400">إجمالي قيمة مبيعات الشهر</p>
           </CardContent>
         </Card>
 
@@ -234,7 +232,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] opacity-80">إجمالي صافي الربح مبيعات الشهر</p>
+            <p className="text-[10px] opacity-80">إجمالي صافي أرباح مبيعات الشهر</p>
           </CardContent>
         </Card>
       </div>
