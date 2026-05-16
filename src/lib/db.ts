@@ -186,6 +186,20 @@ export const db = {
     return newCustomer;
   },
 
+  updateCustomer: (id: string, updates: Partial<Customer>) => {
+    const customers = db.getCustomers();
+    const updated = customers.map((c) => {
+      if (c.id === id) return { ...c, ...updates };
+      return c;
+    });
+    db.saveCustomers(updated);
+  },
+
+  deleteCustomer: (id: string) => {
+    const customers = db.getCustomers();
+    db.saveCustomers(customers.filter((c) => c.id !== id));
+  },
+
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
     const updated = customers.map(c => {

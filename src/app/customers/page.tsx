@@ -2,10 +2,10 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { db, Customer } from "@/lib/db"
+import { db, Customer, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Phone, User, DollarSign } from "lucide-react"
+import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -20,6 +20,7 @@ export default function CustomersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [payAmount, setPayAmount] = useState("")
   const [formData, setFormData] = useState({ name: "", phone: "" })
   const { toast } = useToast()
@@ -31,14 +32,12 @@ export default function CustomersPage() {
   useEffect(() => {
     loadCustomers()
     
-    // Listen for cloud sync completion or local storage changes
-    const handleSync = () => loadCustomers();
-    window.addEventListener('cloud-sync-complete', handleSync);
-    window.addEventListener('storage', handleSync);
+    window.addEventListener(DB_UPDATE_EVENT, loadCustomers)
+    window.addEventListener('storage', loadCustomers)
     
     return () => {
-      window.removeEventListener('cloud-sync-complete', handleSync);
-      window.removeEventListener('storage', handleSync);
+      window.removeEventListener(DB_UPDATE_EVENT, loadCustomers)
+      window.removeEventListener('storage', loadCustomers)
     };
   }, [loadCustomers])
 
@@ -48,11 +47,25 @@ export default function CustomersPage() {
       return
     }
 
-    db.addCustomer(formData)
-    toast({ title: t.success, description: "Customer added successfully." })
+    if (editingCustomer) {
+      db.updateCustomer(editingCustomer.id, formData)
+      toast({ title: t.success, description: "Customer updated successfully." })
+    } else {
+      db.addCustomer(formData)
+      toast({ title: t.success, description: "Customer added successfully." })
+    }
+
     loadCustomers()
     setIsModalOpen(false)
-    setFormData({ name: "", phone: "" })
+    resetForm()
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm(t.deleteConfirm)) {
+      db.deleteCustomer(id)
+      loadCustomers()
+      toast({ title: t.success, description: "Customer removed." })
+    }
   }
 
   const handlePayDebt = () => {
@@ -66,6 +79,17 @@ export default function CustomersPage() {
     setIsPayModalOpen(false)
     setPayAmount("")
     setSelectedCustomer(null)
+  }
+
+  const resetForm = () => {
+    setFormData({ name: "", phone: "" })
+    setEditingCustomer(null)
+  }
+
+  const openEdit = (customer: Customer) => {
+    setEditingCustomer(customer)
+    setFormData({ name: customer.name, phone: customer.phone })
+    setIsModalOpen(true)
   }
 
   const filteredCustomers = customers.filter(c => 
@@ -82,7 +106,7 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">{t.customers}</h1>
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) resetForm() }}>
           <DialogTrigger asChild>
             <Button className="bg-primary hover:bg-primary/90 text-white">
               <Plus className="mr-2 h-4 w-4" /> {t.addCustomer}
@@ -90,7 +114,7 @@ export default function CustomersPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t.addCustomer}</DialogTitle>
+              <DialogTitle>{editingCustomer ? t.editCustomer : t.addCustomer}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -172,7 +196,13 @@ export default function CustomersPage() {
                       ${(Number(customer.totalDebt) || 0).toFixed(2)}
                     </span>
                   </TableCell>
-                  <TableCell className={`${t.lang === 'ar' ? 'text-left' : 'text-right'}`}>
+                  <TableCell className={`${t.lang === 'ar' ? 'text-left' : 'text-right'} space-x-2 rtl:space-x-reverse`}>
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(customer)}>
+                      <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => handleDelete(customer.id)}>
+                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    </Button>
                     {customer.totalDebt > 0 && (
                       <Button 
                         variant="outline" 
