@@ -16,22 +16,27 @@ import { useToast } from "@/hooks/use-toast"
 export default function ReportsPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  // البدء بقيمة فارغة لتجنب خطأ الهيدرة
+  const [selectedDate, setSelectedDate] = useState("")
   const [sales, setSales] = useState<Sale[]>([])
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
+  // تحديد التاريخ الحالي عند التحميل فقط في جانب العميل
+  useEffect(() => {
+    setSelectedDate(new Date().toISOString().split('T')[0])
+  }, [])
+
   const loadSales = useCallback(() => {
+    if (!selectedDate) return
     const allSales = db.getSales()
     const filtered = allSales.filter(s => s.date === selectedDate)
     setSales(filtered)
-    // لا نمسح الملخص هنا لكي يظل ظاهراً حتى يغير المستخدم التاريخ أو يطلب ملخص جديد
   }, [selectedDate])
 
   useEffect(() => {
     loadSales()
     
-    // إضافة مستمعي الأحداث لضمان تحديث الصفحة عند حدوث "مرتجع" أو أي تغيير
     window.addEventListener(DB_UPDATE_EVENT, loadSales)
     window.addEventListener('storage', loadSales)
     
@@ -70,7 +75,6 @@ export default function ReportsPage() {
     if (confirm(t.confirmReturn)) {
       db.returnSale(saleId)
       toast({ title: t.success, description: t.saleReturned })
-      // لاحظ أن loadSales سيتم استدعاؤها تلقائياً عبر DB_UPDATE_EVENT
     }
   }
 
@@ -92,7 +96,7 @@ export default function ReportsPage() {
             value={selectedDate}
             onChange={(e) => {
               setSelectedDate(e.target.value)
-              setSummary(null) // مسح الملخص عند تغيير التاريخ
+              setSummary(null)
             }}
           />
         </div>
@@ -104,7 +108,9 @@ export default function ReportsPage() {
             <CardHeader className="bg-primary text-white py-6">
               <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle>{t.salesEntry} - {new Date(selectedDate).toLocaleDateString(t.lang === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' })}</CardTitle>
+                  <CardTitle>
+                    {t.salesEntry} - {selectedDate ? new Date(selectedDate).toLocaleDateString(t.lang === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' }) : ""}
+                  </CardTitle>
                   <CardDescription className="text-primary-foreground/80">{t.detailedBreakdown}</CardDescription>
                 </div>
                 <div className="text-right">
