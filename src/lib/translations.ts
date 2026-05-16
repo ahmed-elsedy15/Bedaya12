@@ -92,6 +92,9 @@ export const translations = {
     importError: "Failed to import data. Invalid file.",
     discount: "Discount",
     finalTotal: "Final Total",
+    returnSale: "Return Sale",
+    confirmReturn: "Are you sure you want to return this sale? Items will be added back to stock.",
+    saleReturned: "Sale returned and stock updated.",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -186,6 +189,9 @@ export const translations = {
     importError: "فشل الاستيراد. الملف غير صالح.",
     discount: "الخصم",
     finalTotal: "الإجمالي النهائي",
+    returnSale: "إرجاع (مرتجع)",
+    confirmReturn: "هل أنت متأكد من إرجاع هذه العملية؟ سيتم إعادة الكمية للمخزون.",
+    saleReturned: "تم إرجاع العملية وتحديث المخزون.",
   }
 };
 

@@ -1,4 +1,3 @@
-
 "use client"
 
 export interface Product {
@@ -190,6 +189,28 @@ export const db = {
     };
     db.saveSales([newSale, ...sales]);
     return newSale;
+  },
+
+  returnSale: (saleId: string) => {
+    const sales = db.getSales();
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return;
+
+    // 1. Restore product quantity
+    const products = db.getProducts();
+    const product = products.find(p => p.id === sale.productId);
+    if (product) {
+      db.updateProduct(sale.productId, { quantity: product.quantity + sale.quantitySold });
+    }
+
+    // 2. Reduce customer debt if it was a credit sale
+    if (sale.paymentType === 'credit' && sale.customerId) {
+      db.updateCustomerDebt(sale.customerId, -sale.totalPrice);
+    }
+
+    // 3. Remove the sale record
+    const updatedSales = sales.filter(s => s.id !== saleId);
+    db.saveSales(updatedSales);
   },
 
   importAll: (data: any) => {

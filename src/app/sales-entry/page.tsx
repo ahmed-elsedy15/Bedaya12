@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState, useCallback, useMemo } from "react"
@@ -9,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, Search, Check } from "lucide-react"
+import { ShoppingCart, History, Search, Check, RotateCcw } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -95,6 +94,14 @@ export default function SalesEntryPage() {
       setProductSearch("")
     } catch (err: any) {
       toast({ title: t.saleFailed, description: err.message === 'Insufficient stock' ? t.insufficientStock : err.message, variant: "destructive" })
+    }
+  }
+
+  const handleReturn = (saleId: string) => {
+    if (confirm(t.confirmReturn)) {
+      db.returnSale(saleId)
+      toast({ title: t.success, description: t.saleReturned })
+      loadData()
     }
   }
 
@@ -265,10 +272,10 @@ export default function SalesEntryPage() {
                 <TableRow className="bg-muted/50">
                   <TableHead>{t.product}</TableHead>
                   <TableHead>{t.qty}</TableHead>
-                  <TableHead>{t.discount}</TableHead>
                   <TableHead>{t.totalPrice}</TableHead>
                   <TableHead>{t.paymentType}</TableHead>
                   <TableHead>{t.time}</TableHead>
+                  <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,9 +283,6 @@ export default function SalesEntryPage() {
                   <TableRow key={sale.id}>
                     <TableCell className="font-medium">{sale.productName}</TableCell>
                     <TableCell>{sale.quantitySold}</TableCell>
-                    <TableCell className="text-red-500 text-xs">
-                      {sale.discount > 0 ? `-$${sale.discount.toFixed(2)}` : '-'}
-                    </TableCell>
                     <TableCell className="font-bold">${(Number(sale.totalPrice) || 0).toFixed(2)}</TableCell>
                     <TableCell>
                       <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${sale.paymentType === 'credit' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
@@ -287,6 +291,11 @@ export default function SalesEntryPage() {
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </TableCell>
+                    <TableCell className={t.lang === 'ar' ? 'text-left' : 'text-right'}>
+                      <Button variant="ghost" size="icon" onClick={() => handleReturn(sale.id)} title={t.returnSale}>
+                        <RotateCcw className="h-4 w-4 text-orange-500" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -320,8 +329,8 @@ export default function SalesEntryPage() {
               <p>تسجيل المبيعات الآجلة (Credit) يضيف تلقائياً مبلغ المديونية لحساب العميل.</p>
             </div>
             <div className="p-3 bg-white/10 rounded-lg border border-white/10 mt-4">
-              <p className="font-bold mb-1">💡 نصيحة الخصم:</p>
-              <p className="text-xs">استخدم خانة الخصم لتقليل المبلغ النهائي؛ سيتم خصم هذا المبلغ من أرباحك الصافية تلقائياً.</p>
+              <p className="font-bold mb-1">💡 نصيحة المرتجع:</p>
+              <p className="text-xs">إذا قام زبون بإرجاع منتج، استخدم أيقونة المرتجع (السهم الدائري) لإعادة المنتج للمخزون فوراً وتعديل الحسابات.</p>
             </div>
           </CardContent>
         </Card>

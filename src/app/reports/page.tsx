@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useEffect, useState } from "react"
@@ -8,21 +7,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, Download } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, Download, RotateCcw } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
+import { useToast } from "@/hooks/use-toast"
 
 export default function ReportsPage() {
   const { t } = useTranslation()
+  const { toast } = useToast()
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [sales, setSales] = useState<Sale[]>([])
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  useEffect(() => {
+  const loadSales = () => {
     const allSales = db.getSales()
     setSales(allSales.filter(s => s.date === selectedDate))
     setSummary(null)
+  }
+
+  useEffect(() => {
+    loadSales()
   }, [selectedDate])
 
   const totalAmount = sales.reduce((sum, s) => sum + s.totalPrice, 0)
@@ -47,6 +52,14 @@ export default function ReportsPage() {
       setSummary("Failed to generate AI summary.")
     } finally {
       setIsSummarizing(false)
+    }
+  }
+
+  const handleReturn = (saleId: string) => {
+    if (confirm(t.confirmReturn)) {
+      db.returnSale(saleId)
+      toast({ title: t.success, description: t.saleReturned })
+      loadSales()
     }
   }
 
@@ -93,7 +106,8 @@ export default function ReportsPage() {
                     <TableHead>{t.time}</TableHead>
                     <TableHead>{t.product}</TableHead>
                     <TableHead>{t.qty}</TableHead>
-                    <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.totalPrice}</TableHead>
+                    <TableHead>{t.totalPrice}</TableHead>
+                    <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -103,12 +117,17 @@ export default function ReportsPage() {
                         <TableCell className="text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</TableCell>
                         <TableCell className="font-medium">{sale.productName}</TableCell>
                         <TableCell>{sale.quantitySold}</TableCell>
-                        <TableCell className={`${t.lang === 'ar' ? 'text-left' : 'text-right'} font-semibold`}>${sale.totalPrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
+                        <TableCell className={t.lang === 'ar' ? 'text-left' : 'text-right'}>
+                          <Button variant="ghost" size="icon" onClick={() => handleReturn(sale.id)} title={t.returnSale}>
+                            <RotateCcw className="h-4 w-4 text-orange-500" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="h-48 text-center text-muted-foreground">
+                      <TableCell colSpan={5} className="h-48 text-center text-muted-foreground">
                         {t.noSales}
                       </TableCell>
                     </TableRow>
