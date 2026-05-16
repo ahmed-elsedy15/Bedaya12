@@ -5,13 +5,16 @@ import { useEffect, useState, useCallback } from "react"
 import { db, Customer, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2, Wallet } from "lucide-react"
+import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2, Wallet, Star } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/context/language-context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Badge } from "@/components/ui/badge"
+import { cn } from "@/lib/utils"
 
 export default function CustomersPage() {
   const { t } = useTranslation()
@@ -22,7 +25,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [payAmount, setPayAmount] = useState("")
-  const [formData, setFormData] = useState({ name: "", phone: "" })
+  const [formData, setFormData] = useState({ name: "", phone: "", type: "regular" as "regular" | "special" })
   const { toast } = useToast()
 
   const loadCustomers = useCallback(() => {
@@ -42,8 +45,8 @@ export default function CustomersPage() {
   }, [loadCustomers])
 
   const handleSave = () => {
-    if (!formData.name || !formData.phone) {
-      toast({ title: t.error, description: "Please fill all fields.", variant: "destructive" })
+    if (!formData.name) {
+      toast({ title: t.error, description: "Please enter customer name.", variant: "destructive" })
       return
     }
 
@@ -82,13 +85,13 @@ export default function CustomersPage() {
   }
 
   const resetForm = () => {
-    setFormData({ name: "", phone: "" })
+    setFormData({ name: "", phone: "", type: "regular" })
     setEditingCustomer(null)
   }
 
   const openEdit = (customer: Customer) => {
     setEditingCustomer(customer)
-    setFormData({ name: customer.name, phone: customer.phone })
+    setFormData({ name: customer.name, phone: customer.phone, type: customer.type || "regular" })
     setIsModalOpen(true)
   }
 
@@ -99,7 +102,6 @@ export default function CustomersPage() {
 
   const totalDebt = customers.reduce((sum, c) => sum + (Number(c.totalDebt) || 0), 0)
 
-  // حساب المديونية المتبقية للعرض في النافذة
   const currentTotalDebt = Number(selectedCustomer?.totalDebt) || 0;
   const currentPayAmount = parseFloat(payAmount) || 0;
   const remainingDebtAmount = Math.max(0, currentTotalDebt - currentPayAmount);
@@ -121,7 +123,26 @@ export default function CustomersPage() {
             <DialogHeader>
               <DialogTitle>{editingCustomer ? t.editCustomer : t.addCustomer}</DialogTitle>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-6 py-4">
+              <div className="grid gap-2">
+                <Label>{t.customerType}</Label>
+                <RadioGroup 
+                  value={formData.type} 
+                  onValueChange={(val) => setFormData({...formData, type: val as any})}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <Label htmlFor="regular" className={cn("flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer", formData.type === 'regular' ? "border-primary bg-primary/5" : "border-slate-100")}>
+                    <RadioGroupItem value="regular" id="regular" />
+                    <User className="h-4 w-4" />
+                    <span className="text-sm font-medium">{t.regularCustomer}</span>
+                  </Label>
+                  <Label htmlFor="special" className={cn("flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer", formData.type === 'special' ? "border-amber-500 bg-amber-500/5" : "border-slate-100")}>
+                    <RadioGroupItem value="special" id="special" />
+                    <Star className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-medium">{t.specialCustomer}</span>
+                  </Label>
+                </RadioGroup>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="name">{t.customerName}</Label>
                 <Input 
@@ -175,6 +196,7 @@ export default function CustomersPage() {
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead>{t.customerName}</TableHead>
+              <TableHead>{t.customerType}</TableHead>
               <TableHead>{t.phone}</TableHead>
               <TableHead>{t.totalDebt}</TableHead>
               <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
@@ -191,9 +213,20 @@ export default function CustomersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
+                    {customer.type === 'special' ? (
+                      <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                        <Star className="h-3 w-3 mr-1 fill-amber-500" /> {t.specialCustomer}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-slate-600">
+                        {t.regularCustomer}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell>
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="h-4 w-4" />
-                      {customer.phone}
+                      {customer.phone || "-"}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -227,7 +260,7 @@ export default function CustomersPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center text-muted-foreground">
+                <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
                   {t.noCustomers}
                 </TableCell>
               </TableRow>
@@ -272,9 +305,6 @@ export default function CustomersPage() {
                   autoFocus
                 />
               </div>
-              <p className="text-xs text-muted-foreground italic">
-                {t.tip2}
-              </p>
             </div>
           </div>
           <DialogFooter>

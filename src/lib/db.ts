@@ -16,6 +16,7 @@ export interface Customer {
   name: string;
   phone: string;
   totalDebt: number;
+  type: 'regular' | 'special';
   createdAt: number;
 }
 
@@ -172,14 +173,14 @@ export const db = {
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
     let customerName = manualCustomerName;
-    let updatedCustomers = db.getCustomers();
+    let customersList = db.getCustomers();
     
     if (customerId) {
-      const cIdx = updatedCustomers.findIndex(c => c.id === customerId);
-      if (cIdx !== -1) {
-        customerName = updatedCustomers[cIdx].name;
+      const customer = customersList.find(c => c.id === customerId);
+      if (customer) {
+        customerName = customer.name;
         if (paymentType === 'credit' && debt > 0) {
-          updatedCustomers[cIdx].totalDebt = Number(updatedCustomers[cIdx].totalDebt) + debt;
+          db.updateCustomerDebt(customerId, debt);
         }
       }
     }
@@ -204,7 +205,6 @@ export const db = {
 
     const sales = db.getSales();
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([newSale, ...sales]));
     
     db.notify();
@@ -221,17 +221,13 @@ export const db = {
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
-    const customers = db.getCustomers();
-    const updatedCustomers = customers.map(c => 
-      (sale.customerId && c.id === sale.customerId && Number(sale.debtAmount) > 0) 
-        ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(sale.debtAmount)) } 
-        : c
-    );
+    if (sale.customerId && Number(sale.debtAmount) > 0) {
+      db.updateCustomerDebt(sale.customerId, -Number(sale.debtAmount));
+    }
 
     const updatedSales = sales.filter(s => s.id !== saleId);
 
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     
     db.notify();
@@ -246,17 +242,11 @@ export const db = {
     const sale = sales[saleIndex];
     const payAmount = Math.min(amount, Number(sale.debtAmount));
 
-    // تحديث الدين في الفاتورة
     sale.debtAmount = Math.max(0, Number(sale.debtAmount) - payAmount);
     sales[saleIndex] = sale;
 
-    // إذا كان العميل مسجلاً، نحدث مديونيته الكلية أيضاً
     if (sale.customerId) {
-      const customers = db.getCustomers();
-      const updatedCustomers = customers.map(c => 
-        c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - payAmount) } : c
-      );
-      localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
+      db.updateCustomerDebt(sale.customerId, -payAmount);
     }
 
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));

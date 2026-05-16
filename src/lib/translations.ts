@@ -105,6 +105,9 @@ export const translations = {
     subtotal: "Subtotal",
     remove: "Remove",
     amountPaidNow: "Amount Paid Now",
+    customerType: "Customer Type",
+    regularCustomer: "Regular Customer",
+    specialCustomer: "Special Customer",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -211,6 +214,9 @@ export const translations = {
     subtotal: "الإجمالي قبل الخصم",
     remove: "حذف",
     amountPaidNow: "المبلغ المدفوع الآن",
+    customerType: "نوع العميل",
+    regularCustomer: "عميل عادي",
+    specialCustomer: "عميل خاص",
   }
 };
 
