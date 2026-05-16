@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { db, Product, Sale, Customer } from "@/lib/db"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -35,17 +35,14 @@ export default function SalesEntryPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
   
-  // Selection states
   const [selectedProductId, setSelectedProductId] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const [itemDiscount, setItemDiscount] = useState("0")
   
-  // Cart state
   const [cart, setCart] = useState<CartItem[]>([])
   
-  // Search states
   const [productSearch, setProductSearch] = useState("")
   const [customerSearch, setCustomerSearch] = useState("")
   const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false)
@@ -129,7 +126,6 @@ export default function SalesEntryPage() {
     setCart(cart.filter(item => item.id !== id))
   }
 
-  // Reactive calculations
   const finalTotal = cart.reduce((sum, item) => sum + item.total, 0)
 
   const handleCompleteSale = () => {
@@ -174,7 +170,6 @@ export default function SalesEntryPage() {
 
   return (
     <div className="p-4 md:p-8 space-y-8 bg-slate-50/50 dark:bg-transparent min-h-screen">
-      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
@@ -188,10 +183,10 @@ export default function SalesEntryPage() {
         </Badge>
       </header>
 
-      {/* Top Selection Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Product Selection Card */}
-        <Card className="border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
+      {/* Top Selection Section - Adjusted Ratios */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Product Selection Card - LARGER (8/12) */}
+        <Card className="lg:col-span-8 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-primary w-full" />
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
@@ -278,8 +273,8 @@ export default function SalesEntryPage() {
           </CardContent>
         </Card>
 
-        {/* Customer & Payment Card */}
-        <Card className="border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
+        {/* Customer & Payment Card - SMALLER (4/12) */}
+        <Card className="lg:col-span-4 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-accent w-full" />
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
@@ -290,7 +285,7 @@ export default function SalesEntryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div className="grid gap-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.searchCustomers}</Label>
                 <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
@@ -347,24 +342,24 @@ export default function SalesEntryPage() {
                   <Label
                     htmlFor="cash"
                     className={cn(
-                      "flex items-center justify-center gap-3 p-2 rounded-xl border-2 cursor-pointer transition-all h-12",
+                      "flex items-center justify-center gap-2 p-2 rounded-xl border-2 cursor-pointer transition-all h-12",
                       paymentType === 'cash' ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 dark:border-slate-800 hover:bg-slate-50"
                     )}
                   >
                     <RadioGroupItem value="cash" id="cash" className="sr-only" />
                     <Wallet className={cn("h-4 w-4", paymentType === 'cash' ? "text-primary" : "text-muted-foreground")} />
-                    <span className={cn("text-sm font-medium", paymentType === 'cash' ? "text-primary" : "text-slate-600")}>{t.cash}</span>
+                    <span className={cn("text-xs font-medium", paymentType === 'cash' ? "text-primary" : "text-slate-600")}>{t.cash}</span>
                   </Label>
                   <Label
                     htmlFor="credit"
                     className={cn(
-                      "flex items-center justify-center gap-3 p-2 rounded-xl border-2 cursor-pointer transition-all h-12",
+                      "flex items-center justify-center gap-2 p-2 rounded-xl border-2 cursor-pointer transition-all h-12",
                       paymentType === 'credit' ? "border-orange-500 bg-orange-500/5 shadow-inner" : "border-slate-100 dark:border-slate-800 hover:bg-slate-50"
                     )}
                   >
                     <RadioGroupItem value="credit" id="credit" className="sr-only" />
                     <CreditCard className={cn("h-4 w-4", paymentType === 'credit' ? "text-orange-500" : "text-muted-foreground")} />
-                    <span className={cn("text-sm font-medium", paymentType === 'credit' ? "text-orange-600" : "text-slate-600")}>{t.credit}</span>
+                    <span className={cn("text-xs font-medium", paymentType === 'credit' ? "text-orange-600" : "text-slate-600")}>{t.credit}</span>
                   </Label>
                 </RadioGroup>
               </div>
@@ -375,7 +370,6 @@ export default function SalesEntryPage() {
 
       {/* Main Row: Cart and Checkout Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Section */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-none shadow-lg bg-white dark:bg-slate-900 overflow-hidden h-full">
             <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b py-4">
@@ -434,7 +428,6 @@ export default function SalesEntryPage() {
           </Card>
         </div>
 
-        {/* Checkout Summary - Simplified */}
         <div className="lg:col-span-1">
           <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden rounded-2xl h-full flex flex-col">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
@@ -465,7 +458,6 @@ export default function SalesEntryPage() {
         </div>
       </div>
 
-      {/* Footer Section: Recent Sales */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
