@@ -209,7 +209,7 @@ export const db = {
     db.saveCustomers(updated);
   },
 
-  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0) => {
+  recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, skipDebtUpdate: boolean = false) => {
     const products = db.getProducts();
     const productIndex = products.findIndex(p => p.id === productId);
     if (productIndex === -1 || Number(products[productIndex].quantity) < Number(quantity)) {
@@ -234,7 +234,7 @@ export const db = {
       const customerIndex = customers.findIndex(c => c.id === customerId);
       if (customerIndex !== -1) {
         customerName = customers[customerIndex].name;
-        if (paymentType === 'credit') {
+        if (paymentType === 'credit' && !skipDebtUpdate) {
           customers[customerIndex].totalDebt = (Number(customers[customerIndex].totalDebt) || 0) + totalPrice;
           db.saveCustomers(customers);
         }
@@ -269,30 +269,19 @@ export const db = {
     
     const sale = allSales[saleIndex];
 
-    // 1. إعادة الكمية للمخزون بشكل مباشر
-    const allProducts = db.getProducts();
-    const productIndex = allProducts.findIndex(p => p.id === sale.productId);
-    if (productIndex !== -1) {
-      allProducts[productIndex].quantity = Number(allProducts[productIndex].quantity) + Number(sale.quantitySold);
-      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(allProducts));
-    }
+    // 1. إعادة الكمية للمخزون
+    db.updateProduct(sale.productId, {
+      quantity: Number(sale.quantitySold)
+    });
 
-    // 2. تعديل مديونية العميل إذا كان البيع آجلاً بشكل مباشر
+    // 2. تعديل مديونية العميل إذا كان البيع آجلاً
     if (sale.paymentType === 'credit' && sale.customerId) {
-      const allCustomers = db.getCustomers();
-      const customerIndex = allCustomers.findIndex(c => c.id === sale.customerId);
-      if (customerIndex !== -1) {
-        allCustomers[customerIndex].totalDebt = (Number(allCustomers[customerIndex].totalDebt) || 0) - Number(sale.totalPrice);
-        localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(allCustomers));
-      }
+      db.updateCustomerDebt(sale.customerId, -Number(sale.totalPrice));
     }
 
-    // 3. حذف سجل البيع بشكل مباشر
+    // 3. حذف سجل البيع
     allSales.splice(saleIndex, 1);
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(allSales));
-
-    // 4. إرسال تنبيه واحد لكل الواجهات
-    db.notify();
+    db.saveSales(allSales);
   },
 
   importAll: (data: any) => {

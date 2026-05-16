@@ -40,6 +40,7 @@ export default function SalesEntryPage() {
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const [itemDiscount, setItemDiscount] = useState("0")
+  const [paidNow, setPaidNow] = useState("0")
   
   const [cart, setCart] = useState<CartItem[]>([])
   
@@ -127,6 +128,7 @@ export default function SalesEntryPage() {
   }
 
   const finalTotal = cart.reduce((sum, item) => sum + item.total, 0)
+  const remainingDebt = Math.max(0, finalTotal - (parseFloat(paidNow) || 0))
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -140,20 +142,28 @@ export default function SalesEntryPage() {
     }
 
     try {
+      // تسجيل كل المبيعات في المخزون وسجل المبيعات
       cart.forEach(item => {
         db.recordSale(
           item.productId, 
           item.quantity, 
           paymentType, 
           selectedCustomerId || undefined, 
-          item.discount
+          item.discount,
+          true // تجاوز تحديث المديونية التلقائي لأننا سنقوم به يدوياً للفاتورة ككل
         )
       })
+
+      // تحديث المديونية للفاتورة بالكامل (الإجمالي - المدفوع)
+      if (paymentType === 'credit' && selectedCustomerId) {
+        db.updateCustomerDebt(selectedCustomerId, remainingDebt);
+      }
 
       toast({ title: t.saleRecorded, description: "Transaction completed successfully." })
       setCart([])
       setSelectedCustomerId("")
       setPaymentType('cash')
+      setPaidNow("0")
       loadData()
     } catch (err: any) {
       toast({ title: t.saleFailed, description: err.message, variant: "destructive" })
@@ -183,9 +193,7 @@ export default function SalesEntryPage() {
         </Badge>
       </header>
 
-      {/* Top Selection Section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Product Selection Card - 8/12 */}
         <Card className="lg:col-span-8 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-primary w-full" />
           <CardHeader className="pb-4">
@@ -198,7 +206,6 @@ export default function SalesEntryPage() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-4">
-              {/* Row 1: Product Name and Quantity */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                 <div className="md:col-span-9 grid gap-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.productName}</Label>
@@ -261,7 +268,6 @@ export default function SalesEntryPage() {
                 </div>
               </div>
 
-              {/* Row 2: Price, Discount, and Add Button */}
               <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
                 <div className="md:col-span-3 grid gap-2">
                   <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.sellingPrice}</Label>
@@ -288,7 +294,6 @@ export default function SalesEntryPage() {
           </CardContent>
         </Card>
 
-        {/* Customer & Payment Card - 4/12 */}
         <Card className="lg:col-span-4 border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
           <div className="h-1 bg-accent w-full" />
           <CardHeader className="pb-4">
@@ -378,12 +383,32 @@ export default function SalesEntryPage() {
                   </Label>
                 </RadioGroup>
               </div>
+
+              {paymentType === 'credit' && selectedCustomerId && (
+                <div className="grid gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.amountPaidNow}</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-600 opacity-50" />
+                    <Input 
+                      type="number" 
+                      value={paidNow} 
+                      onChange={(e) => setPaidNow(e.target.value)} 
+                      min="0" 
+                      className="h-12 pl-9 border-slate-200 dark:border-slate-800 bg-green-50/20" 
+                      placeholder="0.00" 
+                    />
+                  </div>
+                  <div className="flex justify-between text-[10px] font-bold mt-1 px-1">
+                    <span className="text-muted-foreground uppercase">{t.remainingDebt}:</span>
+                    <span className="text-orange-600">${remainingDebt.toFixed(2)}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Row: Cart and Checkout Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-none shadow-lg bg-white dark:bg-slate-900 overflow-hidden h-full">
@@ -473,7 +498,6 @@ export default function SalesEntryPage() {
         </div>
       </div>
 
-      {/* Recent Sales History */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">

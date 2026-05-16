@@ -104,6 +104,7 @@ export const translations = {
     totalItems: "Total Items",
     subtotal: "Subtotal",
     remove: "Remove",
+    amountPaidNow: "Amount Paid Now",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -209,6 +210,7 @@ export const translations = {
     totalItems: "إجمالي الأصناف",
     subtotal: "الإجمالي قبل الخصم",
     remove: "حذف",
+    amountPaidNow: "المبلغ المدفوع الآن",
   }
 };
 
