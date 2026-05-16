@@ -36,7 +36,7 @@ export default function Dashboard() {
     const salesToday = allSales.filter(s => s.date === today);
     const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     const debtIssuedToday = salesToday.reduce((sum, s) => sum + (Number(s.debtAmount) || 0), 0);
-    const cashFromSalesToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) - Number(s.debtAmount)), 0);
+    const cashFromSalesToday = salesToday.reduce((sum, s) => sum + ( (Number(s.totalPrice) || 0) - (Number(s.debtAmount) || 0) ), 0);
 
     const paymentsToday = allPayments.filter(p => p.date === today);
     const debtCollectedToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
@@ -47,19 +47,19 @@ export default function Dashboard() {
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
     const profitMonth = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     
-    const cashFromSalesMonth = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) - Number(s.debtAmount)), 0);
-    const debtCollectedMonth = allPayments.filter(p => p.date && p.date.startsWith(currentMonthPrefix)).reduce((sum, p) => sum + Number(p.amount), 0);
+    const cashFromSalesMonth = salesMonth.reduce((sum, s) => sum + ( (Number(s.totalPrice) || 0) - (Number(s.debtAmount) || 0) ), 0);
+    const debtCollectedMonth = allPayments.filter(p => p.date && p.date.startsWith(currentMonthPrefix)).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
     const revenueMonth = cashFromSalesMonth + debtCollectedMonth;
 
     setStats({
       totalProducts: products.length,
       totalSalesToday: salesToday.length,
-      revenueToday,
-      profitToday,
-      profitMonth,
-      revenueMonth,
-      debtIssuedToday,
-      debtCollectedToday
+      revenueToday: isNaN(revenueToday) ? 0 : revenueToday,
+      profitToday: isNaN(profitToday) ? 0 : profitToday,
+      profitMonth: isNaN(profitMonth) ? 0 : profitMonth,
+      revenueMonth: isNaN(revenueMonth) ? 0 : revenueMonth,
+      debtIssuedToday: isNaN(debtIssuedToday) ? 0 : debtIssuedToday,
+      debtCollectedToday: isNaN(debtCollectedToday) ? 0 : debtCollectedToday
     });
   }, []);
 
