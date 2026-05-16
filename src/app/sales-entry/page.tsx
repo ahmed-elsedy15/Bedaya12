@@ -69,15 +69,17 @@ export default function SalesEntryPage() {
   }, [loadData])
 
   const filteredProducts = useMemo(() => {
+    const term = productSearch.toLowerCase();
     return products.filter(p => 
-      p.name.toLowerCase().includes(productSearch.toLowerCase())
+      p.name.toLowerCase().includes(term)
     )
   }, [products, productSearch])
 
   const filteredCustomers = useMemo(() => {
+    const term = customerSearch.toLowerCase();
     return customers.filter(c => 
-      c.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
-      c.phone.includes(customerSearch)
+      c.name.toLowerCase().includes(term) ||
+      c.phone.includes(term)
     )
   }, [customers, customerSearch])
 
@@ -121,8 +123,10 @@ export default function SalesEntryPage() {
     setCart(cart.filter(item => item.id !== id))
   }
 
+  // Reactive calculations
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0)
-  const finalTotal = Math.max(0, subtotal - (parseFloat(totalDiscount) || 0))
+  const discountAmount = parseFloat(totalDiscount) || 0
+  const finalTotal = Math.max(0, subtotal - discountAmount)
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -136,7 +140,7 @@ export default function SalesEntryPage() {
     }
 
     try {
-      const discountPerItem = (parseFloat(totalDiscount) || 0) / cart.length;
+      const discountPerItem = discountAmount / cart.length;
 
       cart.forEach(item => {
         db.recordSale(
@@ -183,7 +187,7 @@ export default function SalesEntryPage() {
         </Badge>
       </header>
 
-      {/* Top Selection Section: Horizontal Row */}
+      {/* Top Selection Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Product Selection Card */}
         <Card className="border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
@@ -215,6 +219,7 @@ export default function SalesEntryPage() {
                         className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
+                        autoFocus
                       />
                     </div>
                     <ScrollArea className="h-72">
@@ -233,6 +238,7 @@ export default function SalesEntryPage() {
                               onClick={() => {
                                 setSelectedProductId(p.id)
                                 setIsProductPopoverOpen(false)
+                                setProductSearch("")
                               }}
                             >
                               <div className="flex-1">
@@ -294,10 +300,11 @@ export default function SalesEntryPage() {
                         className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
+                        autoFocus
                       />
                     </div>
                     <ScrollArea className="h-72">
-                      <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); }}>
+                      <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); setCustomerSearch(""); }}>
                         -- {t.cash} --
                       </div>
                       <div className="p-1">
@@ -308,7 +315,11 @@ export default function SalesEntryPage() {
                               "flex cursor-pointer items-center rounded-md px-3 py-3 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800",
                               selectedCustomerId === c.id && "bg-slate-100 dark:bg-slate-800 font-bold"
                             )}
-                            onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}
+                            onClick={() => { 
+                              setSelectedCustomerId(c.id); 
+                              setIsCustomerPopoverOpen(false); 
+                              setCustomerSearch(""); 
+                            }}
                           >
                             <div className="flex-1">
                               <p>{c.name}</p>
@@ -354,9 +365,9 @@ export default function SalesEntryPage() {
         </Card>
       </div>
 
-      {/* Main Row: Cart (Left) and Checkout Summary (Right) side-by-side */}
+      {/* Main Row: Cart and Checkout Summary */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Cart Section (2/3 width) */}
+        {/* Cart Section */}
         <div className="lg:col-span-2 space-y-6">
           <Card className="border-none shadow-lg bg-white dark:bg-slate-900 overflow-hidden h-full">
             <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b py-4">
@@ -411,7 +422,7 @@ export default function SalesEntryPage() {
           </Card>
         </div>
 
-        {/* Checkout Summary (1/3 width) */}
+        {/* Checkout Summary - DISCOUNTS ARE LIVE HERE */}
         <div className="lg:col-span-1">
           <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden rounded-2xl h-full flex flex-col">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
@@ -439,13 +450,21 @@ export default function SalesEntryPage() {
                       className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/20 h-11 focus-visible:ring-accent" 
                       value={totalDiscount} 
                       onChange={(e) => setTotalDiscount(e.target.value)}
+                      placeholder="0.00"
                     />
                   </div>
                 </div>
 
                 <div className="pt-6 border-t border-white/10">
                   <div className="flex justify-between items-end">
-                    <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t.finalTotal}</span>
+                    <div className="flex flex-col">
+                      <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t.finalTotal}</span>
+                      {discountAmount > 0 && (
+                        <span className="text-[10px] text-green-400 font-bold animate-pulse">
+                          Saved: ${discountAmount.toFixed(2)}
+                        </span>
+                      )}
+                    </div>
                     <span className="text-4xl font-black text-accent font-mono tracking-tighter">
                       ${finalTotal.toFixed(2)}
                     </span>
