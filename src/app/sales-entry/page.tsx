@@ -23,6 +23,7 @@ interface CartItem {
   productName: string;
   quantity: number;
   price: number;
+  discount: number;
   total: number;
 }
 
@@ -39,10 +40,10 @@ export default function SalesEntryPage() {
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
+  const [itemDiscount, setItemDiscount] = useState("0")
   
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([])
-  const [totalDiscount, setTotalDiscount] = useState("0")
   
   // Search states
   const [productSearch, setProductSearch] = useState("")
@@ -102,19 +103,24 @@ export default function SalesEntryPage() {
       return
     }
 
+    const disc = parseFloat(itemDiscount) || 0
     const price = Number(selectedProduct.sellingPrice) || Number(selectedProduct.price) || 0;
+    const total = (price * qty) - disc;
+
     const newItem: CartItem = {
       id: crypto.randomUUID(),
       productId: selectedProduct.id,
       productName: selectedProduct.name,
       quantity: qty,
       price: price,
-      total: price * qty
+      discount: disc,
+      total: total
     }
 
     setCart([...cart, newItem])
     setSelectedProductId("")
     setQuantity("1")
+    setItemDiscount("0")
     setProductSearch("")
     toast({ title: t.success, description: "Added to cart" })
   }
@@ -124,9 +130,8 @@ export default function SalesEntryPage() {
   }
 
   // Reactive calculations
-  const subtotal = cart.reduce((sum, item) => sum + item.total, 0)
-  const discountAmount = parseFloat(totalDiscount) || 0
-  const finalTotal = Math.max(0, subtotal - discountAmount)
+  const finalTotal = cart.reduce((sum, item) => sum + item.total, 0)
+  const totalDiscounts = cart.reduce((sum, item) => sum + item.discount, 0)
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -140,21 +145,18 @@ export default function SalesEntryPage() {
     }
 
     try {
-      const discountPerItem = discountAmount / cart.length;
-
       cart.forEach(item => {
         db.recordSale(
           item.productId, 
           item.quantity, 
           paymentType, 
           selectedCustomerId || undefined, 
-          discountPerItem
+          item.discount
         )
       })
 
       toast({ title: t.saleRecorded, description: "Transaction completed successfully." })
       setCart([])
-      setTotalDiscount("0")
       setSelectedCustomerId("")
       setPaymentType('cash')
       loadData()
@@ -202,7 +204,7 @@ export default function SalesEntryPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
-              <div className="md:col-span-8 grid gap-2">
+              <div className="md:col-span-5 grid gap-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.productName}</Label>
                 <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                   <PopoverTrigger asChild>
@@ -260,6 +262,13 @@ export default function SalesEntryPage() {
               <div className="md:col-span-2 grid gap-2">
                 <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.quantity}</Label>
                 <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" className="h-12 border-slate-200 dark:border-slate-800" />
+              </div>
+              <div className="md:col-span-3 grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.discount}</Label>
+                <div className="relative">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                  <Input type="number" value={itemDiscount} onChange={(e) => setItemDiscount(e.target.value)} min="0" className="h-12 pl-9 border-slate-200 dark:border-slate-800" placeholder="0.00" />
+                </div>
               </div>
               <div className="md:col-span-2 flex items-end">
                 <Button onClick={addToCart} className="w-full h-12 bg-primary hover:bg-primary/90 shadow-sm">
@@ -384,6 +393,7 @@ export default function SalesEntryPage() {
                       <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.product}</TableHead>
                       <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.price}</TableHead>
                       <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.qty}</TableHead>
+                      <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.discount}</TableHead>
                       <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.totalPrice}</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
@@ -397,6 +407,9 @@ export default function SalesEntryPage() {
                           <TableCell>
                             <Badge variant="outline" className="font-mono">{item.quantity}</Badge>
                           </TableCell>
+                          <TableCell className="text-red-500 text-xs">
+                            {item.discount > 0 ? `-$${item.discount.toFixed(2)}` : "-"}
+                          </TableCell>
                           <TableCell className="font-bold text-primary">${item.total.toFixed(2)}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
@@ -407,7 +420,7 @@ export default function SalesEntryPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan={5} className="h-64 text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="h-64 text-center text-muted-foreground">
                           <div className="flex flex-col items-center gap-3 opacity-30">
                             <ShoppingCart className="h-16 w-16" />
                             <p className="italic text-lg">{t.cartEmpty}</p>
@@ -422,7 +435,7 @@ export default function SalesEntryPage() {
           </Card>
         </div>
 
-        {/* Checkout Summary - DISCOUNTS ARE LIVE HERE */}
+        {/* Checkout Summary */}
         <div className="lg:col-span-1">
           <Card className="border-none shadow-2xl bg-slate-900 text-white overflow-hidden rounded-2xl h-full flex flex-col">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
@@ -435,33 +448,21 @@ export default function SalesEntryPage() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center py-2 border-b border-white/10">
                   <span className="text-slate-400 text-sm">{t.subtotal}</span>
-                  <span className="font-semibold font-mono">${subtotal.toFixed(2)}</span>
+                  <span className="font-semibold font-mono">${(finalTotal + totalDiscounts).toFixed(2)}</span>
                 </div>
                 
-                <div className="grid gap-2">
-                  <Label htmlFor="totalDiscount" className="text-xs font-bold text-slate-400 flex items-center gap-2">
-                    <Tag className="h-3 w-3 text-accent" /> {t.discount}
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">$</span>
-                    <Input 
-                      id="totalDiscount" 
-                      type="number" 
-                      className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/20 h-11 focus-visible:ring-accent" 
-                      value={totalDiscount} 
-                      onChange={(e) => setTotalDiscount(e.target.value)}
-                      placeholder="0.00"
-                    />
-                  </div>
+                <div className="flex justify-between items-center py-2 border-b border-white/10">
+                  <span className="text-slate-400 text-sm">{t.discount}</span>
+                  <span className="font-semibold font-mono text-green-400">-${totalDiscounts.toFixed(2)}</span>
                 </div>
 
                 <div className="pt-6 border-t border-white/10">
                   <div className="flex justify-between items-end">
                     <div className="flex flex-col">
                       <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t.finalTotal}</span>
-                      {discountAmount > 0 && (
+                      {totalDiscounts > 0 && (
                         <span className="text-[10px] text-green-400 font-bold animate-pulse">
-                          Saved: ${discountAmount.toFixed(2)}
+                          {t.tip2}
                         </span>
                       )}
                     </div>
