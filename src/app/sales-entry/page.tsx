@@ -8,13 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, Search, Check, RotateCcw, User, Plus, Trash2, Tag } from "lucide-react"
+import { ShoppingCart, History, Search, Check, RotateCcw, User, Plus, Trash2, Tag, CreditCard, Wallet, ArrowRight } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { Badge } from "@/components/ui/badge"
 
 interface CartItem {
   id: string;
@@ -135,8 +136,6 @@ export default function SalesEntryPage() {
     }
 
     try {
-      // Process each item in cart
-      // We divide the total discount proportionally among items to maintain correct profit calculation
       const discountPerItem = (parseFloat(totalDiscount) || 0) / cart.length;
 
       cart.forEach(item => {
@@ -169,64 +168,80 @@ export default function SalesEntryPage() {
   }
 
   return (
-    <div className="p-8 grid grid-cols-1 xl:grid-cols-12 gap-8">
+    <div className="p-4 md:p-8 grid grid-cols-1 xl:grid-cols-12 gap-8 bg-slate-50/50 dark:bg-transparent min-h-screen">
       {/* Left Column: Selection & Cart */}
-      <div className="xl:col-span-8 space-y-8">
-        <div>
-          <h1 className="text-3xl font-headline font-bold text-primary">{t.salesEntry}</h1>
-          <p className="text-muted-foreground">{t.welcome}</p>
-        </div>
+      <div className="xl:col-span-8 space-y-6">
+        <header className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-headline font-bold text-primary flex items-center gap-2">
+              <ShoppingCart className="h-8 w-8" />
+              {t.salesEntry}
+            </h1>
+            <p className="text-muted-foreground mt-1">{t.welcome}</p>
+          </div>
+          <Badge variant="outline" className="px-3 py-1 text-sm bg-white dark:bg-slate-900 shadow-sm border-primary/20">
+            {t.totalItems}: {cart.length}
+          </Badge>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Product Selection Card */}
-          <Card className="border-none shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5 text-primary" />
+          <Card className="border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
+            <div className="h-1 bg-primary w-full" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                  <Plus className="h-4 w-4" />
+                </div>
                 {t.selectProduct}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.productName}</Label>
                 <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-12">
+                    <Button variant="outline" className="w-full justify-between h-12 text-start font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
                       {selectedProductId ? products.find(p => p.id === selectedProductId)?.name : t.searchProducts}
                       <Search className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <div className="flex items-center border-b px-3">
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-slate-200 dark:border-slate-800" align="start">
+                    <div className="flex items-center border-b px-3 bg-slate-50 dark:bg-slate-800">
                       <Search className="mr-2 h-4 w-4 opacity-50" />
                       <Input
                         placeholder={t.searchProducts}
-                        className="border-none focus-visible:ring-0 shadow-none px-0"
+                        className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
                         value={productSearch}
                         onChange={(e) => setProductSearch(e.target.value)}
                       />
                     </div>
                     <ScrollArea className="h-72">
                       {filteredProducts.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">{t.noData}</div>
+                        <div className="p-8 text-center text-sm text-muted-foreground">{t.noData}</div>
                       ) : (
                         <div className="p-1">
                           {filteredProducts.map((p) => (
                             <div
                               key={p.id}
                               className={cn(
-                                "flex cursor-pointer items-center rounded-sm px-2 py-2 text-sm hover:bg-accent",
-                                selectedProductId === p.id && "bg-accent"
+                                "flex cursor-pointer items-center rounded-md px-3 py-3 text-sm transition-colors",
+                                "hover:bg-primary/10 hover:text-primary",
+                                selectedProductId === p.id && "bg-primary text-primary-foreground"
                               )}
                               onClick={() => {
                                 setSelectedProductId(p.id)
                                 setIsProductPopoverOpen(false)
                               }}
                             >
-                              <Check className={cn("mr-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
-                              <div className="flex flex-col">
-                                <span className="font-medium">{p.name}</span>
-                                <span className="text-xs text-muted-foreground">${(p.sellingPrice || p.price || 0).toFixed(2)} - {p.quantity} {t.units}</span>
+                              <div className="flex-1">
+                                <p className="font-semibold">{p.name}</p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <Badge variant="secondary" className="text-[10px] h-4 px-1">${(p.sellingPrice || p.price || 0).toFixed(2)}</Badge>
+                                  <span className="text-[10px] text-muted-foreground">{p.quantity} {t.units}</span>
+                                </div>
                               </div>
+                              <Check className={cn("ml-2 h-4 w-4", selectedProductId === p.id ? "opacity-100" : "opacity-0")} />
                             </div>
                           ))}
                         </div>
@@ -237,12 +252,12 @@ export default function SalesEntryPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label>{t.quantity}</Label>
-                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" className="h-12" />
+                  <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.quantity}</Label>
+                  <Input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)} min="1" className="h-12 border-slate-200 dark:border-slate-800" />
                 </div>
                 <div className="flex items-end">
-                  <Button onClick={addToCart} className="w-full h-12 bg-primary">
-                    <Plus className="mr-2 h-4 w-4" /> {t.addToCart}
+                  <Button onClick={addToCart} className="w-full h-12 bg-primary hover:bg-primary/90 shadow-sm">
+                    <Plus className="mr-1 h-4 w-4" /> {t.addToCart}
                   </Button>
                 </div>
               </div>
@@ -250,61 +265,87 @@ export default function SalesEntryPage() {
           </Card>
 
           {/* Customer & Payment Card */}
-          <Card className="border-none shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
+          <Card className="border-none shadow-md overflow-hidden bg-white dark:bg-slate-900">
+            <div className="h-1 bg-accent w-full" />
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <div className="p-2 bg-accent/10 rounded-lg text-accent-foreground">
+                  <User className="h-4 w-4" />
+                </div>
                 {t.customer}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.searchCustomers}</Label>
                 <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between h-12">
+                    <Button variant="outline" className="w-full justify-between h-12 text-start font-normal border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
                       {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : t.searchCustomers}
                       <Search className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                    <div className="flex items-center border-b px-3">
+                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0 shadow-2xl border-slate-200 dark:border-slate-800" align="start">
+                    <div className="flex items-center border-b px-3 bg-slate-50 dark:bg-slate-800">
                       <Search className="mr-2 h-4 w-4 opacity-50" />
                       <Input
                         placeholder={t.searchCustomers}
-                        className="border-none focus-visible:ring-0 shadow-none px-0"
+                        className="border-none focus-visible:ring-0 shadow-none px-0 bg-transparent h-12"
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
                       />
                     </div>
                     <ScrollArea className="h-72">
-                      <div className="p-2 text-xs font-bold text-muted-foreground bg-muted/30 cursor-pointer hover:bg-muted" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); }}>-- {t.cash} --</div>
-                      {filteredCustomers.map((c) => (
-                        <div
-                          key={c.id}
-                          className={cn("flex cursor-pointer items-center rounded-sm px-2 py-2 text-sm hover:bg-accent", selectedCustomerId === c.id && "bg-accent")}
-                          onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}
-                        >
-                          <Check className={cn("mr-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
-                          <div className="flex flex-col">
-                            <span className="font-medium">{c.name}</span>
-                            <span className="text-xs text-muted-foreground">{c.phone}</span>
+                      <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); }}>
+                        -- {t.cash} --
+                      </div>
+                      <div className="p-1">
+                        {filteredCustomers.map((c) => (
+                          <div
+                            key={c.id}
+                            className={cn(
+                              "flex cursor-pointer items-center rounded-md px-3 py-3 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800",
+                              selectedCustomerId === c.id && "bg-slate-100 dark:bg-slate-800 font-bold"
+                            )}
+                            onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}
+                          >
+                            <div className="flex-1">
+                              <p>{c.name}</p>
+                              <p className="text-[10px] text-muted-foreground">{c.phone}</p>
+                            </div>
+                            <Check className={cn("ml-2 h-4 w-4", selectedCustomerId === c.id ? "opacity-100" : "opacity-0")} />
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </ScrollArea>
                   </PopoverContent>
                 </Popover>
               </div>
               <div className="grid gap-2">
-                <RadioGroup defaultValue="cash" value={paymentType} onValueChange={(val) => setPaymentType(val as any)} className="flex gap-4 p-2 bg-muted rounded-md h-12 items-center">
-                  <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                    <RadioGroupItem value="cash" id="cash" />
-                    <Label htmlFor="cash" className="cursor-pointer">{t.cash}</Label>
-                  </div>
-                  <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                    <RadioGroupItem value="credit" id="credit" />
-                    <Label htmlFor="credit" className="cursor-pointer">{t.credit}</Label>
-                  </div>
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t.paymentType}</Label>
+                <RadioGroup defaultValue="cash" value={paymentType} onValueChange={(val) => setPaymentType(val as any)} className="grid grid-cols-2 gap-4">
+                  <Label
+                    htmlFor="cash"
+                    className={cn(
+                      "flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all h-12",
+                      paymentType === 'cash' ? "border-primary bg-primary/5 shadow-inner" : "border-slate-100 dark:border-slate-800 hover:bg-slate-50"
+                    )}
+                  >
+                    <RadioGroupItem value="cash" id="cash" className="sr-only" />
+                    <Wallet className={cn("h-4 w-4", paymentType === 'cash' ? "text-primary" : "text-muted-foreground")} />
+                    <span className={cn("font-medium", paymentType === 'cash' ? "text-primary" : "text-slate-600")}>{t.cash}</span>
+                  </Label>
+                  <Label
+                    htmlFor="credit"
+                    className={cn(
+                      "flex items-center justify-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all h-12",
+                      paymentType === 'credit' ? "border-orange-500 bg-orange-500/5 shadow-inner" : "border-slate-100 dark:border-slate-800 hover:bg-slate-50"
+                    )}
+                  >
+                    <RadioGroupItem value="credit" id="credit" className="sr-only" />
+                    <CreditCard className={cn("h-4 w-4", paymentType === 'credit' ? "text-orange-500" : "text-muted-foreground")} />
+                    <span className={cn("font-medium", paymentType === 'credit' ? "text-orange-600" : "text-slate-600")}>{t.credit}</span>
+                  </Label>
                 </RadioGroup>
               </div>
             </CardContent>
@@ -312,44 +353,49 @@ export default function SalesEntryPage() {
         </div>
 
         {/* Cart Card */}
-        <Card className="border-none shadow-xl bg-card overflow-hidden">
-          <CardHeader className="bg-primary/5 border-b">
-            <CardTitle className="flex items-center gap-2 text-primary">
-              <ShoppingCart className="h-5 w-5" />
-              {t.cart} ({cart.length})
+        <Card className="border-none shadow-lg bg-white dark:bg-slate-900 overflow-hidden">
+          <CardHeader className="bg-slate-50 dark:bg-slate-800/50 border-b py-4">
+            <CardTitle className="flex items-center gap-2 text-slate-700 dark:text-slate-200 text-base">
+              <ShoppingCart className="h-5 w-5 text-primary" />
+              {t.cart}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <ScrollArea className="max-h-[400px]">
+            <ScrollArea className="max-h-[350px]">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    <TableHead>{t.product}</TableHead>
-                    <TableHead>{t.price}</TableHead>
-                    <TableHead>{t.qty}</TableHead>
-                    <TableHead>{t.totalPrice}</TableHead>
-                    <TableHead className="w-10"></TableHead>
+                  <TableRow className="bg-slate-50/50 dark:bg-slate-800/30 border-none">
+                    <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.product}</TableHead>
+                    <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.price}</TableHead>
+                    <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.qty}</TableHead>
+                    <TableHead className="text-xs uppercase font-bold text-muted-foreground">{t.totalPrice}</TableHead>
+                    <TableHead className="w-12"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {cart.length > 0 ? (
                     cart.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.productName}</TableCell>
-                        <TableCell>${item.price.toFixed(2)}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
+                      <TableRow key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors border-slate-100 dark:border-slate-800">
+                        <TableCell className="font-semibold">{item.productName}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs">${item.price.toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="font-mono">{item.quantity}</Badge>
+                        </TableCell>
                         <TableCell className="font-bold text-primary">${item.total.toFixed(2)}</TableCell>
                         <TableCell>
-                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)}>
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                          <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)} className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="h-32 text-center text-muted-foreground italic">
-                        {t.cartEmpty}
+                      <TableCell colSpan={5} className="h-40 text-center text-muted-foreground">
+                        <div className="flex flex-col items-center gap-2">
+                          <ShoppingCart className="h-10 w-10 opacity-20" />
+                          <p className="italic">{t.cartEmpty}</p>
+                        </div>
                       </TableCell>
                     </TableRow>
                   )}
@@ -362,70 +408,102 @@ export default function SalesEntryPage() {
 
       {/* Right Column: Checkout Summary & History */}
       <div className="xl:col-span-4 space-y-8">
-        <Card className="border-none shadow-2xl bg-primary text-primary-foreground sticky top-8">
-          <CardHeader>
-            <CardTitle>{t.completeSale}</CardTitle>
-            <CardDescription className="text-primary-foreground/70">Summary of the transaction</CardDescription>
+        <Card className="border-none shadow-2xl bg-slate-900 text-white sticky top-8 overflow-hidden rounded-2xl">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full -mr-16 -mt-16 blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/20 rounded-full -ml-16 -mb-16 blur-3xl pointer-events-none" />
+          
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-bold tracking-tight">{t.completeSale}</CardTitle>
+            <CardDescription className="text-slate-400 text-xs">{t.detailedBreakdown}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span>{t.subtotal}:</span>
-                <span className="font-bold">${subtotal.toFixed(2)}</span>
+          <CardContent className="space-y-6 relative">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center py-2 border-b border-white/10">
+                <span className="text-slate-400 text-sm">{t.subtotal}</span>
+                <span className="font-semibold font-mono">${subtotal.toFixed(2)}</span>
               </div>
-              <div className="grid gap-2 pt-2">
-                <Label htmlFor="totalDiscount" className="text-primary-foreground/80 flex items-center gap-2">
-                  <Tag className="h-3 w-3" /> {t.discount}
+              
+              <div className="grid gap-2">
+                <Label htmlFor="totalDiscount" className="text-xs font-bold text-slate-400 flex items-center gap-2">
+                  <Tag className="h-3 w-3 text-accent" /> {t.discount}
                 </Label>
-                <Input 
-                  id="totalDiscount" 
-                  type="number" 
-                  className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-10" 
-                  value={totalDiscount} 
-                  onChange={(e) => setTotalDiscount(e.target.value)}
-                />
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">$</span>
+                  <Input 
+                    id="totalDiscount" 
+                    type="number" 
+                    className="pl-7 bg-white/5 border-white/10 text-white placeholder:text-white/20 h-11 focus-visible:ring-accent" 
+                    value={totalDiscount} 
+                    onChange={(e) => setTotalDiscount(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="border-t border-white/20 pt-4 flex justify-between items-center">
-                <span className="text-lg font-bold">{t.finalTotal}:</span>
-                <span className="text-3xl font-black">${finalTotal.toFixed(2)}</span>
+
+              <div className="pt-6 border-t border-white/10">
+                <div className="flex justify-between items-end">
+                  <span className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">{t.finalTotal}</span>
+                  <span className="text-4xl font-black text-accent font-mono tracking-tighter">
+                    ${finalTotal.toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
             
             <Button 
-              className="w-full bg-accent hover:bg-accent/90 text-primary font-black py-8 text-xl shadow-lg" 
+              className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-8 text-xl shadow-lg transition-transform active:scale-95 group rounded-xl" 
               disabled={cart.length === 0}
               onClick={handleCompleteSale}
             >
               {t.completeSale}
+              <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
             </Button>
+            
+            <div className="flex items-center justify-center gap-2 text-[10px] text-slate-500 font-medium">
+              <Check className="h-3 w-3" />
+              {t.tip2}
+            </div>
           </CardContent>
         </Card>
 
         {/* Recent Sales History Snippet */}
         <div className="space-y-4">
-          <h3 className="font-bold flex items-center gap-2">
-            <History className="h-4 w-4" />
-            {t.recentSales}
-          </h3>
-          <div className="rounded-lg border bg-card shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+              <History className="h-4 w-4 text-primary" />
+              {t.recentSales}
+            </h3>
+            <Badge variant="secondary" className="text-[10px] bg-slate-100 dark:bg-slate-800">{recentSales.length}</Badge>
+          </div>
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
             <Table>
               <TableBody>
                 {recentSales.map(sale => (
-                  <TableRow key={sale.id} className="text-xs">
-                    <TableCell className="py-2">
-                      <div className="font-bold">{sale.productName}</div>
-                      <div className="text-[10px] text-muted-foreground">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                  <TableRow key={sale.id} className="text-xs border-slate-50 dark:border-slate-800/50 hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <TableCell className="py-3">
+                      <p className="font-bold text-slate-700 dark:text-slate-300">{sale.productName}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     </TableCell>
-                    <TableCell className="py-2 font-bold text-primary">${sale.totalPrice.toFixed(2)}</TableCell>
-                    <TableCell className="py-2 text-right">
-                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleReturn(sale.id)}>
-                        <RotateCcw className="h-3 w-3 text-orange-500" />
+                    <TableCell className="py-3">
+                       <span className={cn(
+                         "px-1.5 py-0.5 rounded text-[9px] font-bold",
+                         sale.paymentType === 'cash' ? "bg-green-100 text-green-700" : "bg-orange-100 text-orange-700"
+                       )}>
+                         {sale.paymentType === 'cash' ? t.cash : t.credit}
+                       </span>
+                    </TableCell>
+                    <TableCell className="py-3 font-black text-primary text-right">${sale.totalPrice.toFixed(2)}</TableCell>
+                    <TableCell className="py-3 text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20" onClick={() => handleReturn(sale.id)}>
+                        <RotateCcw className="h-3.5 w-3.5" />
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
+            {recentSales.length === 0 && (
+              <div className="py-8 text-center text-muted-foreground text-xs italic">{t.noSales}</div>
+            )}
           </div>
         </div>
       </div>
