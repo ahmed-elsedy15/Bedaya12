@@ -8,12 +8,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, History, Search, Check, RotateCcw, User, Plus, Trash2, Tag, CreditCard, Wallet, ArrowRight, DollarSign, Star } from "lucide-react"
+import { ShoppingCart, History, Search, Plus, Trash2, CreditCard, Wallet, ArrowRight, Star } from "lucide-react"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useTranslation } from "@/context/language-context"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 
@@ -37,6 +38,8 @@ export default function SalesEntryPage() {
   
   const [selectedProductId, setSelectedProductId] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
+  const [isNewCustomer, setIsNewCustomer] = useState(false)
+  const [newCustomerName, setNewCustomerName] = useState("")
   const [paymentType, setPaymentType] = useState<'cash' | 'credit'>('cash')
   const [quantity, setQuantity] = useState("1")
   const [itemDiscount, setItemDiscount] = useState("0")
@@ -119,12 +122,29 @@ export default function SalesEntryPage() {
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
     
-    if (paymentType === 'credit' && !selectedCustomerId) {
+    if (paymentType === 'credit' && !selectedCustomerId && !isNewCustomer) {
       toast({ title: t.error, description: t.customer, variant: "destructive" });
       return;
     }
 
+    if (isNewCustomer && !newCustomerName && paymentType === 'credit') {
+      toast({ title: t.error, description: t.customerName, variant: "destructive" });
+      return;
+    }
+
     try {
+      let finalCustomerId = selectedCustomerId;
+
+      // إنشاء عميل جديد إذا تم تفعيل الخيار
+      if (paymentType === 'credit' && isNewCustomer && newCustomerName) {
+        const newCust = db.addCustomer({
+          name: newCustomerName,
+          phone: "",
+          type: "regular"
+        });
+        finalCustomerId = newCust.id;
+      }
+
       const debtRatio = finalTotal > 0 ? debtToRecord / finalTotal : 0;
 
       cart.forEach(item => {
@@ -133,7 +153,7 @@ export default function SalesEntryPage() {
           item.productId, 
           item.quantity, 
           paymentType, 
-          selectedCustomerId || undefined, 
+          finalCustomerId || undefined, 
           item.discount,
           itemDebt
         )
@@ -142,6 +162,8 @@ export default function SalesEntryPage() {
       toast({ title: t.saleRecorded })
       setCart([])
       setSelectedCustomerId("")
+      setIsNewCustomer(false)
+      setNewCustomerName("")
       setPaymentType('cash')
       setPaidNow("0")
       loadData()
@@ -252,47 +274,12 @@ export default function SalesEntryPage() {
           <div className="h-1 bg-accent w-full" />
           <CardHeader className="pb-4">
             <CardTitle className="text-lg flex items-center gap-2 text-slate-800 dark:text-slate-200">
-              <User className="h-4 w-4 text-accent" />
-              {t.customer}
+              <CreditCard className="h-4 w-4 text-accent" />
+              {t.paymentType}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.searchCustomers}</Label>
-              <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-between h-12 text-start font-normal">
-                    {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : t.searchCustomers}
-                    <Search className="ml-2 h-4 w-4 opacity-50" />
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                  <div className="flex items-center border-b px-3">
-                    <Search className="mr-2 h-4 w-4 opacity-50" />
-                    <Input
-                      placeholder={t.searchCustomers}
-                      className="border-none focus-visible:ring-0 shadow-none bg-transparent h-12"
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                    />
-                  </div>
-                  <ScrollArea className="h-72">
-                    <div className="p-3 text-xs font-bold text-primary uppercase bg-primary/5 cursor-pointer" onClick={() => { setSelectedCustomerId(""); setIsCustomerPopoverOpen(false); }}>
-                      -- {t.cash} --
-                    </div>
-                    {filteredCustomers.map((c) => (
-                      <div key={c.id} className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between" onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}>
-                        <p className="text-sm">{c.name}</p>
-                        {c.type === 'special' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </div>
-            
-            <div className="grid gap-2">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.paymentType}</Label>
               <RadioGroup value={paymentType} onValueChange={(val) => setPaymentType(val as any)} className="grid grid-cols-2 gap-4">
                 <Label htmlFor="cash" className={cn("flex items-center justify-center gap-2 p-2 rounded-xl border-2 cursor-pointer h-12", paymentType === 'cash' ? "border-primary bg-primary/5" : "border-slate-100")}>
                   <RadioGroupItem value="cash" id="cash" className="sr-only" />
@@ -307,13 +294,63 @@ export default function SalesEntryPage() {
               </RadioGroup>
             </div>
 
-            {paymentType === 'credit' && selectedCustomerId && (
-              <div className="grid gap-2 animate-in fade-in">
-                <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.amountPaidNow}</Label>
-                <Input type="number" value={paidNow} onChange={(e) => setPaidNow(e.target.value)} min="0" className="h-12 bg-green-50/20" placeholder="0.00" />
-                <div className="flex justify-between text-[10px] font-bold mt-1">
-                  <span className="text-muted-foreground uppercase">{t.remainingDebt}:</span>
-                  <span className="text-orange-600">${debtToRecord.toFixed(2)}</span>
+            {paymentType === 'credit' && (
+              <div className="space-y-4 pt-2 border-t mt-4 animate-in slide-in-from-top-2 duration-300">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-primary uppercase">{t.newCustomer}</Label>
+                  <Switch checked={isNewCustomer} onCheckedChange={setIsNewCustomer} />
+                </div>
+
+                {isNewCustomer ? (
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.customerName}</Label>
+                    <Input 
+                      placeholder={t.customerName}
+                      value={newCustomerName}
+                      onChange={(e) => setNewCustomerName(e.target.value)}
+                      className="h-12 border-primary/30 focus:border-primary"
+                    />
+                  </div>
+                ) : (
+                  <div className="grid gap-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.searchCustomers}</Label>
+                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-between h-12 text-start font-normal">
+                          {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : t.searchCustomers}
+                          <Search className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                        <div className="flex items-center border-b px-3">
+                          <Search className="mr-2 h-4 w-4 opacity-50" />
+                          <Input
+                            placeholder={t.searchCustomers}
+                            className="border-none focus-visible:ring-0 shadow-none bg-transparent h-12"
+                            value={customerSearch}
+                            onChange={(e) => setProductSearch(e.target.value)}
+                          />
+                        </div>
+                        <ScrollArea className="h-72">
+                          {filteredCustomers.map((c) => (
+                            <div key={c.id} className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between" onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}>
+                              <p className="text-sm">{c.name}</p>
+                              {c.type === 'special' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                            </div>
+                          ))}
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                <div className="grid gap-2 pt-2 border-t">
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.amountPaidNow}</Label>
+                  <Input type="number" value={paidNow} onChange={(e) => setPaidNow(e.target.value)} min="0" className="h-12 bg-green-50/20" placeholder="0.00" />
+                  <div className="flex justify-between text-[10px] font-bold mt-1">
+                    <span className="text-muted-foreground uppercase">{t.remainingDebt}:</span>
+                    <span className="text-orange-600">${debtToRecord.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -413,7 +450,7 @@ export default function SalesEntryPage() {
                   <TableCell className="font-black text-primary text-right text-base">${sale.totalPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="icon" className="hover:text-orange-600" onClick={() => handleReturn(sale.id)}>
-                      <RotateCcw className="h-4 w-4" />
+                      <History className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>

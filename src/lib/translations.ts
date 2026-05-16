@@ -108,6 +108,7 @@ export const translations = {
     customerType: "Customer Type",
     regularCustomer: "Regular Customer",
     specialCustomer: "Special Customer",
+    newCustomer: "New Customer?",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -217,6 +218,7 @@ export const translations = {
     customerType: "نوع العميل",
     regularCustomer: "عميل عادي",
     specialCustomer: "عميل خاص",
+    newCustomer: "عميل جديد؟",
   }
 };
 
