@@ -28,7 +28,7 @@ export interface Sale {
   purchasePriceAtSale: number;
   sellingPriceAtSale: number;
   totalPrice: number;
-  profit: number;
+  profit: number; // الإجمالي المتوقع للربح
   date: string;
   timestamp: number;
   customerId?: string;
@@ -38,10 +38,20 @@ export interface Sale {
   debtAmount: number; 
 }
 
+export interface Payment {
+  id: string;
+  customerId: string;
+  customerName: string;
+  amount: number;
+  date: string;
+  timestamp: number;
+}
+
 const STORAGE_KEYS = {
   PRODUCTS: 'salesphere_products',
   SALES: 'salesphere_sales',
   CUSTOMERS: 'salesphere_customers',
+  PAYMENTS: 'salesphere_payments',
 };
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
@@ -54,11 +64,24 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
-export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
-  if (typeof sale.profit === 'number' && sale.profit !== 0) return Number(sale.profit);
-  const sell = Number(sale.sellingPriceAtSale) || 0;
-  const buy = Number(sale.purchasePriceAtSale) || 0;
-  return (sell - buy) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
+// حساب الربح المحقق فعلياً من الفاتورة بناءً على الجزء المدفوع كاش
+export const getRealizedSaleProfit = (sale: Sale) => {
+  const totalPrice = Number(sale.totalPrice) || 0;
+  if (totalPrice === 0) return 0;
+  
+  const debt = Number(sale.debtAmount) || 0;
+  const paidCash = totalPrice - debt;
+  const ratio = paidCash / totalPrice;
+  
+  const totalExpectedProfit = Number(sale.profit) || 0;
+  return totalExpectedProfit * ratio;
+};
+
+// حساب الإيراد الفعلي من الفاتورة (الكاش فقط)
+export const getRealizedSaleRevenue = (sale: Sale) => {
+  const totalPrice = Number(sale.totalPrice) || 0;
+  const debt = Number(sale.debtAmount) || 0;
+  return totalPrice - debt;
 };
 
 export const db = {
@@ -93,6 +116,16 @@ export const db = {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getPayments: (): Payment[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -141,21 +174,25 @@ export const db = {
     return newCustomer;
   },
 
-  updateCustomer: (id: string, updates: Partial<Customer>) => {
-    const customers = db.getCustomers();
-    const updated = customers.map((c) => (c.id === id ? { ...c, ...updates } : c));
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
-    db.notify();
-  },
-
-  deleteCustomer: (id: string) => {
-    const customers = db.getCustomers();
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers.filter((c) => c.id !== id)));
-    db.notify();
-  },
-
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
+    const customer = customers.find(c => c.id === id);
+    if (!customer) return;
+
+    // إذا كان المبلغ سالباً، فهذا يعني عملية "تسديد" (فلوس دخلت الدرج)
+    if (amount < 0) {
+      const payments = db.getPayments();
+      const newPayment: Payment = {
+        id: crypto.randomUUID(),
+        customerId: id,
+        customerName: customer.name,
+        amount: Math.abs(amount),
+        date: getLocalDateString(),
+        timestamp: Date.now()
+      };
+      localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify([newPayment, ...payments]));
+    }
+
     const updated = customers.map(c => (c.id === id ? { ...c, totalDebt: Number(c.totalDebt) + Number(amount) } : c));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
     db.notify();
@@ -173,14 +210,16 @@ export const db = {
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
     let customerName = manualCustomerName;
-    let customersList = db.getCustomers();
+    const customersList = db.getCustomers();
     
     if (customerId) {
       const customer = customersList.find(c => c.id === customerId);
       if (customer) {
         customerName = customer.name;
         if (paymentType === 'credit' && debt > 0) {
-          db.updateCustomerDebt(customerId, debt);
+          // تحديث الديون بدون تسجيل "دفعة" لأن هذا "تسجيل دين" وليس "تسديد"
+          const updatedCusts = customersList.map(c => (c.id === customerId ? { ...c, totalDebt: Number(c.totalDebt) + debt } : c));
+          localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCusts));
         }
       }
     }
@@ -217,39 +256,25 @@ export const db = {
     if (!sale) return false;
 
     const products = db.getProducts();
+    const customers = db.getCustomers();
+
     const updatedProducts = products.map(p => 
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
+    let updatedCustomers = [...customers];
     if (sale.customerId && Number(sale.debtAmount) > 0) {
-      db.updateCustomerDebt(sale.customerId, -Number(sale.debtAmount));
+      updatedCustomers = customers.map(c => 
+        c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(sale.debtAmount)) } : c
+      );
     }
 
     const updatedSales = sales.filter(s => s.id !== saleId);
 
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     
-    db.notify();
-    return true;
-  },
-
-  paySaleDebt: (saleId: string, amount: number) => {
-    const sales = db.getSales();
-    const saleIndex = sales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return false;
-
-    const sale = sales[saleIndex];
-    const payAmount = Math.min(amount, Number(sale.debtAmount));
-
-    sale.debtAmount = Math.max(0, Number(sale.debtAmount) - payAmount);
-    sales[saleIndex] = sale;
-
-    if (sale.customerId) {
-      db.updateCustomerDebt(sale.customerId, -payAmount);
-    }
-
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
     db.notify();
     return true;
   },
@@ -258,6 +283,7 @@ export const db = {
     if (data.products) localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data.products));
     if (data.sales) localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(data.sales));
     if (data.customers) localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(data.customers));
+    if (data.payments) localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(data.payments));
     db.notify();
   }
 };
