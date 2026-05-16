@@ -25,13 +25,14 @@ export default function Dashboard() {
 
   const loadStats = useCallback(() => {
     const products = db.getProducts();
-    const allSales = [...db.getSales()].sort((a, b) => a.timestamp - b.timestamp); // ترتيب زمني للأقدمية
+    // ترتيب المبيعات زمنياً لضمان توزيع المدفوعات بنظام الأقدم فالأحدث (FIFO)
+    const allSales = [...db.getSales()].sort((a, b) => a.timestamp - b.timestamp);
     const allPayments = db.getPayments();
     
     const today = getLocalDateString();
     const currentMonthPrefix = today.substring(0, 7);
     
-    // حساب المديونيات المتبقية لكل فاتورة لمحاكاة سداد الربح بدقة
+    // تتبع الديون المتبقية لكل فاتورة بشكل مستقل
     const salesRemainingDebt: Record<string, number> = {};
     allSales.forEach(s => salesRemainingDebt[s.id] = Number(s.debtAmount) || 0);
 
@@ -41,7 +42,7 @@ export default function Dashboard() {
     let revenueMonth = 0;
     let profitMonth = 0;
 
-    // 1. معالجة المدفوعات التاريخية (FIFO) لتحديد ما تم سداده اليوم وفي الشهر
+    // 1. معالجة كافة المدفوعات التاريخية لتحديد الأرباح المحققة اليوم وفي الشهر
     allPayments.sort((a, b) => a.timestamp - b.timestamp).forEach(payment => {
       const isToday = payment.date === today;
       const isThisMonth = payment.date && payment.date.startsWith(currentMonthPrefix);
@@ -55,17 +56,17 @@ export default function Dashboard() {
       }
 
       let amountToDistribute = Number(payment.amount);
-      // ابحث عن فواتير هذا العميل التي بها مديونية
-      const customerDebtSales = allSales.filter(s => s.customerId === payment.customerId);
+      // البحث عن فواتير هذا العميل حصراً
+      const customerSales = allSales.filter(s => s.customerId === payment.customerId);
       
-      for (const sale of customerDebtSales) {
+      for (const sale of customerSales) {
         if (amountToDistribute <= 0) break;
-        const currentDebtOnSale = salesRemainingDebt[sale.id];
-        if (currentDebtOnSale <= 0) continue;
+        const debtOnThisSale = salesRemainingDebt[sale.id];
+        if (debtOnThisSale <= 0) continue;
 
-        const paidTowardsThisSale = Math.min(amountToDistribute, currentDebtOnSale);
+        const paidTowardsThisSale = Math.min(amountToDistribute, debtOnThisSale);
         
-        // حساب المكسب من هذا المبلغ تحديداً
+        // حساب الجزء "الربحي" من هذا المبلغ المدفوع تحديداً
         const profitFromThisPayment = calculateRealizedProfitFromAmount(sale, paidTowardsThisSale);
         
         if (isToday) profitToday += profitFromThisPayment;
@@ -75,20 +76,21 @@ export default function Dashboard() {
         amountToDistribute -= paidTowardsThisSale;
       }
       
-      // إذا دفع العميل مبلغاً زائداً عن ديونه، نعتبر الزيادة ربحاً صافياً
+      // أي مبلغ زائد عن الديون يعتبر ربحاً صافياً إضافياً
       if (amountToDistribute > 0) {
         if (isToday) profitToday += amountToDistribute;
         if (isThisMonth) profitMonth += amountToDistribute;
       }
     });
 
-    // 2. معالجة مبيعات اليوم والشهر (الجزء الكاش فقط)
+    // 2. معالجة مبيعات اليوم والشهر (الجزء المدفوع كاش فوراً)
     allSales.forEach(sale => {
       const isToday = sale.date === today;
       const isThisMonth = sale.date && sale.date.startsWith(currentMonthPrefix);
       
       const cashAmount = sale.totalPrice - sale.debtAmount;
       if (cashAmount > 0) {
+        // حساب الربح من المبلغ المدفوع كاش عند البيع
         const profitFromCash = calculateRealizedProfitFromAmount(sale, cashAmount);
         
         if (isToday) {
@@ -204,7 +206,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-700 dark:text-green-400">${stats.profitToday.toFixed(2)}</div>
-            <p className="text-[10px] text-green-600/80">المكسب الحقيقي من التحصيل النقدي اليوم</p>
+            <p className="text-[10px] text-green-600/80">المكسب الصافي من الفلوس اللي دخلت اليوم</p>
           </CardContent>
         </Card>
 
@@ -217,7 +219,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-amber-700 dark:text-amber-400">${stats.debtCollectedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-amber-600/80">إجمالي ما سدده العملاء من حسابهم</p>
+            <p className="text-[10px] text-amber-600/80">إجمالي ما سدده العملاء اليوم من حسابهم</p>
           </CardContent>
         </Card>
 
@@ -230,7 +232,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-purple-600/80">صافي الربح الحقيقي المحقق هذا الشهر</p>
+            <p className="text-[10px] text-purple-600/80">صافي المكاسب المحققة هذا الشهر</p>
           </CardContent>
         </Card>
       </div>
