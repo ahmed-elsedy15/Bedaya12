@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw, Trash2 } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
@@ -22,7 +22,6 @@ export default function ReportsPage() {
   const [isSummarizing, setIsSummarizing] = useState(false)
 
   const loadSales = useCallback(() => {
-    // نستخدم التاريخ المختار أو تاريخ اليوم كقيمة افتراضية
     const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
     const allSales = db.getSales()
     const filtered = allSales.filter(s => s.date === dateToLoad)
@@ -74,7 +73,16 @@ export default function ReportsPage() {
     if (confirm(t.confirmReturn)) {
       if (db.returnSale(saleId)) {
         toast({ title: t.success, description: t.saleReturned })
-        loadSales(); // تحديث القائمة فوراً بعد الإرجاع
+        loadSales();
+      }
+    }
+  }
+
+  const handleDelete = (saleId: string) => {
+    if (confirm(t.deleteConfirm)) {
+      if (db.deleteSale(saleId)) {
+        toast({ title: t.success, description: "تم حذف السجل بنجاح" })
+        loadSales();
       }
     }
   }
@@ -155,7 +163,7 @@ export default function ReportsPage() {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right flex items-center justify-end gap-1">
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -164,6 +172,15 @@ export default function ReportsPage() {
                             title={t.returnSale}
                           >
                             <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => handleDelete(sale.id)} 
+                            className="h-8 w-8 hover:bg-red-50 text-red-500"
+                            title={t.remove}
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
