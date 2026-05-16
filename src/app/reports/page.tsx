@@ -7,12 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw, Wallet, DollarSign } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 
 export default function ReportsPage() {
@@ -22,10 +20,6 @@ export default function ReportsPage() {
   const [sales, setSales] = useState<Sale[]>([])
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
-  
-  const [isPayModalOpen, setIsPayModalOpen] = useState(false)
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null)
-  const [payAmount, setPayAmount] = useState("")
 
   const loadSales = useCallback(() => {
     const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
@@ -79,20 +73,6 @@ export default function ReportsPage() {
         toast({ title: t.success, description: t.saleReturned })
         loadSales();
       }
-    }
-  }
-
-  const handlePayDebt = () => {
-    if (!selectedSale || !payAmount) return
-    const amount = parseFloat(payAmount)
-    if (isNaN(amount) || amount <= 0) return
-
-    if (db.paySaleDebt(selectedSale.id, amount)) {
-      toast({ title: t.success, description: t.debtCleared })
-      loadSales()
-      setIsPayModalOpen(false)
-      setPayAmount("")
-      setSelectedSale(null)
     }
   }
 
@@ -171,21 +151,7 @@ export default function ReportsPage() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-right space-x-1 rtl:space-x-reverse">
-                        {sale.debtAmount > 0 && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-8 w-8 text-green-600 hover:bg-green-50"
-                            onClick={() => {
-                              setSelectedSale(sale)
-                              setIsPayModalOpen(true)
-                            }}
-                            title={t.payDebt}
-                          >
-                            <Wallet className="h-4 w-4" />
-                          </Button>
-                        )}
+                      <TableCell className="text-right">
                         <Button 
                           variant="ghost" 
                           size="icon" 
@@ -236,46 +202,6 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
-
-      <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t.payDebt} - {selectedSale?.customerName || t.customer}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-6 py-4">
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
-              <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground uppercase">{t.remainingDebt}</Label>
-                <div className="text-xl font-bold text-red-600">
-                  ${(selectedSale?.debtAmount || 0).toFixed(2)}
-                </div>
-              </div>
-            </div>
-            
-            <div className="grid gap-3">
-              <Label htmlFor="payAmount" className="font-bold">{t.amountToPay}</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                  id="payAmount" 
-                  type="number"
-                  className="pl-9 h-12 text-lg font-bold"
-                  value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
-                  placeholder="0.00"
-                  autoFocus
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsPayModalOpen(false)}>{t.cancel}</Button>
-            <Button onClick={handlePayDebt} className="bg-green-600 hover:bg-green-700 text-white font-bold px-8">
-              {t.save}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
