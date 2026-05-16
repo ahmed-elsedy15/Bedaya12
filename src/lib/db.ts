@@ -34,7 +34,7 @@ export interface Sale {
   customerName?: string;
   paymentType: 'cash' | 'credit';
   discount: number;
-  debtAmount: number; // المبلغ الذي سُجل فعلياً كدين لهذا الصنف
+  debtAmount: number; 
 }
 
 const STORAGE_KEYS = {
@@ -43,6 +43,7 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'salesphere_customers',
 };
 
+// توحيد اسم الحدث عالمياً
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
 
 export const getLocalDateString = () => {
@@ -55,16 +56,9 @@ export const getLocalDateString = () => {
 
 export const getSafeSaleProfit = (sale: Sale, products: Product[] = []) => {
   if (typeof sale.profit === 'number' && sale.profit !== 0) return Number(sale.profit);
-  if (sale.sellingPriceAtSale && sale.purchasePriceAtSale) {
-    return (Number(sale.sellingPriceAtSale) - Number(sale.purchasePriceAtSale)) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
-  }
-  const product = products.find(p => p.id === sale.productId);
-  if (product) {
-    const sell = Number(product.sellingPrice) || Number(product.price) || 0;
-    const buy = Number(product.purchasePrice) || 0;
-    return (sell - buy) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
-  }
-  return 0;
+  const sell = Number(sale.sellingPriceAtSale) || 0;
+  const buy = Number(sale.purchasePriceAtSale) || 0;
+  return (sell - buy) * Number(sale.quantitySold) - (Number(sale.discount) || 0);
 };
 
 export const db = {
@@ -79,14 +73,7 @@ export const db = {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
-      const parsed = stored ? JSON.parse(stored) : [];
-      return parsed.map((p: any) => ({
-        ...p,
-        quantity: Number(p.quantity) || 0,
-        purchasePrice: Number(p.purchasePrice) || 0,
-        sellingPrice: Number(p.sellingPrice) || Number(p.price) || 0,
-        price: Number(p.sellingPrice) || Number(p.price) || 0
-      }));
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
     }
@@ -96,16 +83,7 @@ export const db = {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.SALES);
-      const parsed = stored ? JSON.parse(stored) : [];
-      return parsed.map((s: any) => ({
-        ...s,
-        quantitySold: Number(s.quantitySold) || 0,
-        totalPrice: Number(s.totalPrice) || 0,
-        profit: Number(s.profit) || 0,
-        discount: Number(s.discount) || 0,
-        debtAmount: Number(s.debtAmount) || 0,
-        timestamp: Number(s.timestamp) || Date.now()
-      }));
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
     }
@@ -115,29 +93,10 @@ export const db = {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.CUSTOMERS);
-      const parsed = stored ? JSON.parse(stored) : [];
-      return parsed.map((c: any) => ({
-        ...c,
-        totalDebt: Number(c.totalDebt) || 0
-      }));
+      return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
     }
-  },
-
-  saveProducts: (products: Product[]) => {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-    db.notify();
-  },
-
-  saveSales: (sales: Sale[]) => {
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
-    db.notify();
-  },
-
-  saveCustomers: (customers: Customer[]) => {
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
-    db.notify();
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -151,29 +110,22 @@ export const db = {
       id: crypto.randomUUID(),
       createdAt: Date.now(),
     };
-    db.saveProducts([newProduct, ...products]);
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify([newProduct, ...products]));
+    db.notify();
     return newProduct;
   },
 
   updateProduct: (id: string, updates: Partial<Product>) => {
     const products = db.getProducts();
-    const updated = products.map((p) => {
-      if (p.id === id) {
-        const merged = { ...p, ...updates };
-        if (updates.sellingPrice !== undefined) merged.sellingPrice = Number(updates.sellingPrice);
-        if (updates.quantity !== undefined) merged.quantity = Number(updates.quantity);
-        if (updates.purchasePrice !== undefined) merged.purchasePrice = Number(updates.purchasePrice);
-        merged.price = merged.sellingPrice;
-        return merged;
-      }
-      return p;
-    });
-    db.saveProducts(updated);
+    const updated = products.map((p) => (p.id === id ? { ...p, ...updates, price: updates.sellingPrice ?? p.sellingPrice } : p));
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updated));
+    db.notify();
   },
 
   deleteProduct: (id: string) => {
     const products = db.getProducts();
-    db.saveProducts(products.filter((p) => p.id !== id));
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products.filter((p) => p.id !== id)));
+    db.notify();
   },
 
   addCustomer: (customer: Omit<Customer, 'id' | 'createdAt' | 'totalDebt'>) => {
@@ -184,74 +136,64 @@ export const db = {
       totalDebt: 0,
       createdAt: Date.now(),
     };
-    db.saveCustomers([newCustomer, ...customers]);
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify([newCustomer, ...customers]));
+    db.notify();
     return newCustomer;
   },
 
   updateCustomer: (id: string, updates: Partial<Customer>) => {
     const customers = db.getCustomers();
-    const updated = customers.map((c) => {
-      if (c.id === id) return { ...c, ...updates };
-      return c;
-    });
-    db.saveCustomers(updated);
+    const updated = customers.map((c) => (c.id === id ? { ...c, ...updates } : c));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
+    db.notify();
   },
 
   deleteCustomer: (id: string) => {
     const customers = db.getCustomers();
-    db.saveCustomers(customers.filter((c) => c.id !== id));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers.filter((c) => c.id !== id)));
+    db.notify();
   },
 
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
-    const updated = customers.map(c => {
-      if (c.id === id) return { ...c, totalDebt: (Number(c.totalDebt) || 0) + Number(amount) };
-      return c;
-    });
-    db.saveCustomers(updated);
+    const updated = customers.map(c => (c.id === id ? { ...c, totalDebt: Number(c.totalDebt) + Number(amount) } : c));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
+    db.notify();
   },
 
   recordSale: (productId: string, quantity: number, paymentType: 'cash' | 'credit' = 'cash', customerId?: string, discount: number = 0, debtAmount: number = 0) => {
     const products = db.getProducts();
-    const productIndex = products.findIndex(p => p.id === productId);
-    if (productIndex === -1 || Number(products[productIndex].quantity) < Number(quantity)) {
-      throw new Error('Insufficient stock');
-    }
+    const product = products.find(p => p.id === productId);
+    if (!product || Number(product.quantity) < Number(quantity)) throw new Error('Insufficient stock');
 
-    const product = products[productIndex];
     const qty = Number(quantity);
-    const dsc = Number(discount) || 0;
-    const debt = Number(debtAmount) || 0;
-    const sellingPrice = Number(product.sellingPrice) || 0;
-    const purchasePrice = Number(product.purchasePrice) || 0;
-    const totalPrice = (sellingPrice * qty) - dsc;
-    const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
-
-    products[productIndex].quantity = Number(products[productIndex].quantity) - qty;
+    const dsc = Number(discount);
+    const debt = Number(debtAmount);
     
+    // تحديث المخزون
+    const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
+
     let customerName = undefined;
+    let updatedCustomers = db.getCustomers();
     if (customerId) {
-      const customers = db.getCustomers();
-      const customerIndex = customers.findIndex(c => c.id === customerId);
-      if (customerIndex !== -1) {
-        customerName = customers[customerIndex].name;
+      const cIdx = updatedCustomers.findIndex(c => c.id === customerId);
+      if (cIdx !== -1) {
+        customerName = updatedCustomers[cIdx].name;
         if (paymentType === 'credit' && debt > 0) {
-          customers[customerIndex].totalDebt = (Number(customers[customerIndex].totalDebt) || 0) + debt;
-          db.saveCustomers(customers);
+          updatedCustomers[cIdx].totalDebt = Number(updatedCustomers[cIdx].totalDebt) + debt;
         }
       }
     }
 
-    const sales = db.getSales();
     const newSale: Sale = {
       id: crypto.randomUUID(),
       productId,
       productName: product.name,
       quantitySold: qty,
-      purchasePriceAtSale: purchasePrice,
-      sellingPriceAtSale: sellingPrice,
-      totalPrice,
-      profit,
+      purchasePriceAtSale: Number(product.purchasePrice),
+      sellingPriceAtSale: Number(product.sellingPrice),
+      totalPrice: (Number(product.sellingPrice) * qty) - dsc,
+      profit: ((Number(product.sellingPrice) - Number(product.purchasePrice)) * qty) - dsc,
       date: getLocalDateString(),
       timestamp: Date.now(),
       customerId,
@@ -261,43 +203,41 @@ export const db = {
       debtAmount: paymentType === 'credit' ? debt : 0
     };
 
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    const sales = db.getSales();
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([newSale, ...sales]));
-    db.notify();
     
+    db.notify();
     return newSale;
   },
 
   returnSale: (saleId: string) => {
-    const allSales = db.getSales();
+    const sales = db.getSales();
+    const sale = sales.find(s => s.id === saleId);
+    if (!sale) return false;
+
+    // 1. إعادة البضاعة للمخزون
     const products = db.getProducts();
+    const updatedProducts = products.map(p => 
+      p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
+    );
+
+    // 2. خصم الدين من العميل
     const customers = db.getCustomers();
-    
-    const saleIndex = allSales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return false;
-    
-    const sale = allSales[saleIndex];
+    const updatedCustomers = customers.map(c => 
+      (c.id === sale.customerId && Number(sale.debtAmount) > 0) 
+        ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(sale.debtAmount)) } 
+        : c
+    );
 
-    // 1. إعادة الكمية للمخزون
-    const pIndex = products.findIndex(p => p.id === sale.productId);
-    if (pIndex !== -1) {
-      products[pIndex].quantity = Number(products[pIndex].quantity) + Number(sale.quantitySold);
-    }
+    // 3. حذف العملية من السجل
+    const updatedSales = sales.filter(s => s.id !== saleId);
 
-    // 2. تحديث مديونية العميل (إذا كان هناك دين مسجل)
-    if (sale.customerId && Number(sale.debtAmount) > 0) {
-      const cIndex = customers.findIndex(c => c.id === sale.customerId);
-      if (cIndex !== -1) {
-        customers[cIndex].totalDebt = Math.max(0, Number(customers[cIndex].totalDebt) - Number(sale.debtAmount));
-      }
-    }
-
-    // 3. حذف السجل وحفظ كل شيء بشكل ذري
-    const updatedSales = allSales.filter(s => s.id !== saleId);
-
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    // حفظ الكل دفعة واحدة
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
-    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
     
     db.notify();
     return true;

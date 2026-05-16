@@ -6,7 +6,6 @@ import { db, Sale, DB_UPDATE_EVENT } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
@@ -21,21 +20,17 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  // تهيئة التاريخ في useEffect لتجنب أخطاء Hydration
-  useEffect(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    setSelectedDate(`${year}-${month}-${day}`);
-  }, [])
-
   const loadSales = useCallback(() => {
-    if (!selectedDate) return
+    const dateToLoad = selectedDate || new Date().toISOString().split('T')[0];
     const allSales = db.getSales()
-    const filtered = allSales.filter(s => s.date === selectedDate)
+    const filtered = allSales.filter(s => s.date === dateToLoad)
     setSales(filtered)
   }, [selectedDate])
+
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    setSelectedDate(today);
+  }, [])
 
   useEffect(() => {
     loadSales()
@@ -72,11 +67,13 @@ export default function ReportsPage() {
 
   const handleReturn = (saleId: string) => {
     if (confirm(t.confirmReturn)) {
-      if (db.returnSale(saleId)) {
+      const success = db.returnSale(saleId);
+      if (success) {
         toast({ title: t.success, description: t.saleReturned })
-        loadSales(); // تحديث فوري للبيانات في الصفحة
+        // الحل البديل: تحديث الحالة يدوياً فوراً لضمان العمل حتى لو فشل الحدث
+        loadSales();
       } else {
-        toast({ title: t.error, description: "Sale not found", variant: "destructive" })
+        toast({ title: t.error, description: "Operation failed", variant: "destructive" })
       }
     }
   }
@@ -110,7 +107,7 @@ export default function ReportsPage() {
               <div className="flex justify-between items-center">
                 <div>
                   <CardTitle>
-                    {t.salesEntry} - {selectedDate ? new Date(selectedDate).toLocaleDateString(t.lang === 'ar' ? 'ar-EG' : 'en-US', { dateStyle: 'long' }) : ""}
+                    {t.salesEntry} - {selectedDate}
                   </CardTitle>
                 </div>
                 <div className="text-right">
@@ -174,7 +171,7 @@ export default function ReportsPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {summary && (
-                <div className="p-4 bg-card rounded-lg border border-accent/20 text-sm leading-relaxed animate-in fade-in slide-in-from-top-2">
+                <div className="p-4 bg-card rounded-lg border border-accent/20 text-sm leading-relaxed">
                   {summary}
                 </div>
               )}
