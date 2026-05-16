@@ -1,9 +1,14 @@
-
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, googleProvider } from '@/lib/firebase';
-import { onAuthStateChanged, signInWithPopup, signOut, User } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signInWithRedirect, 
+  getRedirectResult, 
+  signOut, 
+  User 
+} from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
@@ -23,60 +28,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // مراقبة حالة المستخدم بشكل مستمر
+    // التحقق من نتيجة إعادة التوجيه عند تحميل الصفحة
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          toast({
+            title: "تم تسجيل الدخول",
+            description: `أهلاً بك ${result.user.displayName}`,
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Redirect result error:", error);
+      });
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
-      // بمجرد تغير الحالة، نغلق مؤشر التحميل الخاص بتسجيل الدخول
       setSigningIn(false);
     }, (error) => {
       console.error("Auth state change error:", error);
       setLoading(false);
       setSigningIn(false);
     });
+
     return () => unsubscribe();
-  }, []);
+  }, [toast]);
 
   const loginWithGoogle = async () => {
     if (signingIn) return;
     
     setSigningIn(true);
     try {
-      // محاولة تسجيل الدخول
-      const result = await signInWithPopup(auth, googleProvider);
-      if (result.user) {
-        toast({
-          title: "تم تسجيل الدخول",
-          description: `أهلاً بك ${result.user.displayName}`,
-        });
-      }
+      // استخدام Redirect بدلاً من Popup لضمان العمل في كل المتصفحات
+      await signInWithRedirect(auth, googleProvider);
     } catch (error: any) {
-      console.error("Login failed detailed error:", error);
-      
-      // تجاهل الخطأ إذا قام المستخدم بإغلاق النافذة بنفسه
-      if (error.code === 'auth/popup-closed-by-user') {
-        setSigningIn(false);
-        return;
-      }
-      
-      // رسالة توضيحية لنوع الخطأ
-      let errorMessage = "حدث خطأ غير متوقع. حاول مرة أخرى.";
-      if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = "تم إلغاء طلب تسجيل الدخول بسبب فتح نافذة أخرى.";
-      } else if (error.code === 'auth/popup-blocked') {
-        errorMessage = "قام المتصفح بحظر النافذة المنبثقة. يرجى السماح بالنوافذ المنبثقة لهذا الموقع.";
-      } else if (error.code === 'auth/operation-not-allowed') {
-        errorMessage = "طريقة تسجيل الدخول هذه غير مفعلة في إعدادات Firebase.";
-      }
-      
+      console.error("Login failed:", error);
+      setSigningIn(false);
       toast({
         title: "خطأ في تسجيل الدخول",
-        description: errorMessage,
+        description: "تعذر بدء عملية تسجيل الدخول. يرجى المحاولة مرة أخرى.",
         variant: "destructive"
       });
-    } finally {
-      // تأمين إعادة تعيين الحالة مهما حدث
-      setSigningIn(false);
     }
   };
 
