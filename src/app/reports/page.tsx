@@ -16,15 +16,18 @@ import { useToast } from "@/hooks/use-toast"
 export default function ReportsPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  // البدء بقيمة فارغة لتجنب خطأ الهيدرة
   const [selectedDate, setSelectedDate] = useState("")
   const [sales, setSales] = useState<Sale[]>([])
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  // تحديد التاريخ الحالي عند التحميل فقط في جانب العميل
+  // تهيئة التاريخ في جانب العميل فقط لتجنب أخطاء الهيدرة
   useEffect(() => {
-    setSelectedDate(new Date().toISOString().split('T')[0])
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    setSelectedDate(`${year}-${month}-${day}`);
   }, [])
 
   const loadSales = useCallback(() => {
@@ -37,12 +40,17 @@ export default function ReportsPage() {
   useEffect(() => {
     loadSales()
     
-    window.addEventListener(DB_UPDATE_EVENT, loadSales)
-    window.addEventListener('storage', loadSales)
+    // الاستماع لأحداث التحديث من أي مكان في التطبيق
+    const handleUpdate = () => {
+      loadSales();
+    };
+
+    window.addEventListener(DB_UPDATE_EVENT, handleUpdate)
+    window.addEventListener('storage', handleUpdate)
     
     return () => {
-      window.removeEventListener(DB_UPDATE_EVENT, loadSales)
-      window.removeEventListener('storage', loadSales)
+      window.removeEventListener(DB_UPDATE_EVENT, handleUpdate)
+      window.removeEventListener('storage', handleUpdate)
     }
   }, [loadSales])
 
@@ -73,8 +81,14 @@ export default function ReportsPage() {
 
   const handleReturn = (saleId: string) => {
     if (confirm(t.confirmReturn)) {
-      db.returnSale(saleId)
-      toast({ title: t.success, description: t.saleReturned })
+      try {
+        db.returnSale(saleId)
+        // إجبار الواجهة على التحديث فوراً دون انتظار الأحداث
+        loadSales();
+        toast({ title: t.success, description: t.saleReturned })
+      } catch (error) {
+        toast({ title: t.error, description: "Failed to return sale.", variant: "destructive" })
+      }
     }
   }
 

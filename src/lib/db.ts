@@ -91,11 +91,6 @@ export const db = {
     }
   },
 
-  saveProducts: (products: Product[]) => {
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-    db.notify();
-  },
-
   getSales: (): Sale[] => {
     if (typeof window === 'undefined') return [];
     try {
@@ -114,11 +109,6 @@ export const db = {
     }
   },
 
-  saveSales: (sales: Sale[]) => {
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
-    db.notify();
-  },
-
   getCustomers: (): Customer[] => {
     if (typeof window === 'undefined') return [];
     try {
@@ -131,6 +121,16 @@ export const db = {
     } catch (e) {
       return [];
     }
+  },
+
+  saveProducts: (products: Product[]) => {
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+    db.notify();
+  },
+
+  saveSales: (sales: Sale[]) => {
+    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(sales));
+    db.notify();
   },
 
   saveCustomers: (customers: Customer[]) => {
@@ -262,15 +262,17 @@ export const db = {
   },
 
   returnSale: (saleId: string) => {
+    // 1. جلب كل البيانات الحالية
     const allSales = db.getSales();
-    const saleIndex = allSales.findIndex(s => s.id === saleId);
-    if (saleIndex === -1) return;
-    
-    const sale = allSales[saleIndex];
     const products = db.getProducts();
     const customers = db.getCustomers();
+    
+    // 2. العثور على عملية البيع
+    const saleIndex = allSales.findIndex(s => s.id === saleId);
+    if (saleIndex === -1) return;
+    const sale = allSales[saleIndex];
 
-    // 1. إعادة المنتج للمخزون - استخدام الرقم الصريح لتجنب مشاكل الجمع
+    // 3. إعادة الكمية للمخزون
     const pIndex = products.findIndex(p => p.id === sale.productId);
     if (pIndex !== -1) {
       const currentQty = Number(products[pIndex].quantity) || 0;
@@ -278,26 +280,25 @@ export const db = {
       products[pIndex].quantity = currentQty + returnedQty;
     }
 
-    // 2. تحديث مديونية العميل (خصم قيمة المنتج المرتجع من دينه)
+    // 4. تحديث مديونية العميل (إذا كانت العملية آجلة)
     if (sale.paymentType === 'credit' && sale.customerId) {
       const cIndex = customers.findIndex(c => c.id === sale.customerId);
       if (cIndex !== -1) {
         const currentDebt = Number(customers[cIndex].totalDebt) || 0;
         const returnAmount = Number(sale.totalPrice) || 0;
-        // لا نسمح بالدين أن يصبح سالباً في هذه العملية البسيطة
         customers[cIndex].totalDebt = Math.max(0, currentDebt - returnAmount);
       }
     }
 
-    // 3. حذف سجل البيع
+    // 5. حذف العملية من السجل
     const updatedSales = allSales.filter(s => s.id !== saleId);
 
-    // 4. حفظ كل شيء مرة واحدة لضمان التزامن الذري
+    // 6. الحفظ النهائي لكل شيء (تحديث ذري)
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers));
     
-    // 5. إبلاغ الواجهة بالتحديث
+    // 7. إخطار النظام بالتغيير
     db.notify();
   },
 
