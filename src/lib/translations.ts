@@ -24,7 +24,7 @@ export const translations = {
     totalMonthProfit: "total profits this month",
     totalMonthRevenue: "total revenue this month",
     topProduct: "most requested product",
-    addProduct: "Add Customer",
+    addProduct: "Add Product",
     editProduct: "Edit Product",
     editCustomer: "Edit Customer",
     productName: "Product Name",
@@ -97,6 +97,12 @@ export const translations = {
     returnSale: "Return Sale",
     confirmReturn: "Are you sure you want to return this sale? Items will be added back to stock.",
     saleReturned: "Sale returned and stock updated.",
+    addToCart: "Add to Cart",
+    cart: "Shopping Cart",
+    cartEmpty: "Your cart is empty",
+    totalItems: "Total Items",
+    subtotal: "Subtotal",
+    remove: "Remove",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -195,6 +201,12 @@ export const translations = {
     returnSale: "إرجاع (مرتجع)",
     confirmReturn: "هل أنت متأكد من إرجاع هذه العملية؟ سيتم إعادة الكمية للمخزون.",
     saleReturned: "تم إرجاع العملية وتحديث المخزون.",
+    addToCart: "إضافة للسلة",
+    cart: "سلة المشتريات",
+    cartEmpty: "السلة فارغة",
+    totalItems: "إجمالي الأصناف",
+    subtotal: "الإجمالي قبل الخصم",
+    remove: "حذف",
   }
 };
 
