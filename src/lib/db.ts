@@ -224,7 +224,7 @@ export const db = {
     const totalPrice = (sellingPrice * qty) - dsc;
     const profit = ((sellingPrice - purchasePrice) * qty) - dsc;
 
-    // تحديث المخزون
+    // تحديث المخزون بالخصم
     products[productIndex].quantity = Number(products[productIndex].quantity) - qty;
     db.saveProducts(products);
 
@@ -269,10 +269,13 @@ export const db = {
     
     const sale = allSales[saleIndex];
 
-    // 1. إعادة الكمية للمخزون
-    db.updateProduct(sale.productId, {
-      quantity: Number(sale.quantitySold)
-    });
+    // 1. إعادة الكمية للمخزون (إضافة للكمية الحالية وليس استبدالها)
+    const products = db.getProducts();
+    const pIndex = products.findIndex(p => p.id === sale.productId);
+    if (pIndex !== -1) {
+      products[pIndex].quantity = Number(products[pIndex].quantity) + Number(sale.quantitySold);
+      db.saveProducts(products);
+    }
 
     // 2. تعديل مديونية العميل إذا كان البيع آجلاً
     if (sale.paymentType === 'credit' && sale.customerId) {
