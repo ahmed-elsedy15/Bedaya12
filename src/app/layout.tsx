@@ -32,15 +32,21 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <LanguageProvider>
-            <SidebarProvider>
+            <SidebarProvider defaultOpen={true}>
               <AppSidebar />
               <SidebarInset>
-                <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+                <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
                   <SidebarTrigger className="-ml-1" />
+                  <div className="flex-1"></div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
+                      B
+                    </div>
+                  </div>
                 </header>
-                <div className="flex flex-col min-h-screen">
+                <main className="flex flex-col flex-1 overflow-y-auto">
                   {children}
-                </div>
+                </main>
               </SidebarInset>
             </SidebarProvider>
           </LanguageProvider>
