@@ -66,33 +66,48 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" side={dir === "rtl" ? "right" : "left"}>
-      <SidebarHeader className="h-20 flex items-center px-4 border-b">
-        <div className="flex items-center gap-3 w-full">
-          <div className="min-w-10 w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-lg shrink-0">
-            <Store className="h-5 w-5" />
+      <SidebarHeader className="h-24 flex items-center px-4 border-b bg-primary/5">
+        <div className="flex items-center gap-4 w-full">
+          <div className="min-w-12 w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-xl shadow-primary/20 shrink-0 transform transition-transform duration-300 hover:rotate-6">
+            <Store className="h-7 w-7" />
           </div>
           <div className={cn(
-            "flex flex-col transition-opacity duration-300",
-            state === "collapsed" ? "opacity-0 w-0" : "opacity-100"
+            "flex flex-col transition-all duration-300",
+            state === "collapsed" ? "opacity-0 w-0 scale-95" : "opacity-100 scale-100"
           )}>
-            <span className="font-headline font-bold text-lg tracking-tight whitespace-nowrap">
+            <span className="font-headline font-black text-2xl tracking-tight whitespace-nowrap text-primary">
               Bedaya
             </span>
-            <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest whitespace-nowrap">Enterprise</span>
+            <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+              Enterprise
+            </span>
           </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="py-4">
         <SidebarGroup>
-          <SidebarGroupLabel className={cn(state === "collapsed" && "sr-only")}>{t.management}</SidebarGroupLabel>
+          <SidebarGroupLabel className={cn(
+            "px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2",
+            state === "collapsed" && "sr-only"
+          )}>
+            {t.management}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-1 px-2">
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton asChild isActive={pathname === item.url} tooltip={item.title}>
-                    <Link href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={pathname === item.url} 
+                    tooltip={item.title}
+                    className="h-11 px-4 rounded-xl transition-all duration-200"
+                  >
+                    <Link href={item.url} className="flex items-center gap-3">
+                      <item.icon className={cn(
+                        "h-5 w-5 transition-colors",
+                        pathname === item.url ? "text-primary" : "text-muted-foreground"
+                      )} />
+                      <span className="font-medium text-sm">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -101,24 +116,30 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-2 border-t space-y-1">
-        <SidebarMenu>
+      <SidebarFooter className="p-4 border-t bg-muted/20 space-y-2">
+        <SidebarMenu className="gap-1">
           <SidebarMenuItem>
             <SidebarMenuButton
+              className="h-10 rounded-xl hover:bg-white dark:hover:bg-slate-800 shadow-sm border border-transparent hover:border-border"
               onClick={() => setLang(lang === "en" ? "ar" : "en")}
               tooltip={t.language}
             >
-              <Languages className="h-4 w-4" />
-              <span>{lang === "en" ? "العربية" : "English"}</span>
+              <Languages className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold">{lang === "en" ? "العربية" : "English"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton
+              className="h-10 rounded-xl hover:bg-white dark:hover:bg-slate-800 shadow-sm border border-transparent hover:border-border"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               tooltip={t.mode}
             >
-              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              <span>{theme === "dark" ? "Light" : "Dark"}</span>
+              {theme === "dark" ? (
+                <Sun className="h-4 w-4 text-amber-500" />
+              ) : (
+                <Moon className="h-4 w-4 text-indigo-600" />
+              )}
+              <span className="text-xs font-semibold">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
