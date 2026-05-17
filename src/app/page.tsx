@@ -28,10 +28,10 @@ export default function Dashboard() {
     const products = db.getProducts();
     const allSales = db.getSales();
     const allPayments = db.getPayments();
-    
+
     const todayStr = getLocalDateString();
     const currentMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
-    
+
     // 1. إحصائيات اليوم (بناءً على مبيعات اليوم)
     const salesToday = allSales.filter(s => s.date === todayStr);
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
@@ -109,13 +109,20 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-8 space-y-8">
+    <div
+      className="p-8 space-y-8 min-h-screen bg-center bg-cover bg-no-repeat"
+      style={{
+        backgroundImage: "url('/KING2.png')",
+        backgroundSize: "400px",
+        backgroundPosition: "bottom center"
+      }}
+    >
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-headline font-bold text-primary">{t.dashboard}</h1>
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
-        
+
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
             <Download className="h-4 w-4" /> {t.exportData}

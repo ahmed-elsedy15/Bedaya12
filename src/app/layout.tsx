@@ -37,10 +37,21 @@ export default function RootLayout({
               <SidebarInset>
                 <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur">
                   <SidebarTrigger className="-ml-1" />
-                  <div className="flex-1"></div>
+
+                  {/* الاسم في النص */}
+                  <div className="flex-1 text-center font-semibold text-lg">
+                    شركة بداية للإلكترونيات
+                  </div>
+
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                      B
+                    <div className="w-12 h-12 rounded-lg  flex items-center justify-center text-primary font-bold text-sm">
+                      <img
+                        src="/KING2.PNG"
+                        alt="Bedaya"
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   </div>
                 </header>

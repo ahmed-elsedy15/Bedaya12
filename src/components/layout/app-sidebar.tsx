@@ -83,7 +83,7 @@ export function AppSidebar() {
                 Bedaya
               </span>
               <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] whitespace-nowrap">
-                Enterprise
+                Eletronics
               </span>
             </div>
           )}
