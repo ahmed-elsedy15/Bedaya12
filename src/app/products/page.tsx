@@ -11,6 +11,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useTranslation } from "@/context/language-context"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function ProductsPage() {
   const { t } = useTranslation()
@@ -18,6 +28,7 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [productToDelete, setProductToDelete] = useState<string | null>(null)
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
@@ -64,12 +75,12 @@ export default function ProductsPage() {
     resetForm()
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm(t.deleteConfirm)) {
-      db.deleteProduct(id)
-      loadProducts()
-      toast({ title: t.success, description: "Product removed." })
-    }
+  const handleDelete = () => {
+    if (!productToDelete) return
+    db.deleteProduct(productToDelete)
+    loadProducts()
+    toast({ title: t.success, description: "Product removed." })
+    setProductToDelete(null)
   }
 
   const resetForm = () => {
@@ -213,7 +224,7 @@ export default function ProductsPage() {
                       <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
                         <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDelete(product.id)}>
+                      <Button variant="ghost" size="icon" onClick={() => setProductToDelete(product.id)}>
                         <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
                     </TableCell>
@@ -230,6 +241,23 @@ export default function ProductsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!productToDelete} onOpenChange={(open) => !open && setProductToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteConfirm}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setProductToDelete(null)}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              {t.save}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

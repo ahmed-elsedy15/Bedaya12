@@ -15,6 +15,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function CustomersPage() {
   const { t } = useTranslation()
@@ -24,6 +34,7 @@ export default function CustomersPage() {
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [payAmount, setPayAmount] = useState("")
   const [formData, setFormData] = useState({ name: "", phone: "", type: "regular" as "regular" | "special" })
   const { toast } = useToast()
@@ -63,12 +74,12 @@ export default function CustomersPage() {
     resetForm()
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm(t.deleteConfirm)) {
-      db.deleteCustomer(id)
-      loadCustomers()
-      toast({ title: t.success, description: "Customer removed." })
-    }
+  const handleDelete = () => {
+    if (!customerToDelete) return
+    db.deleteCustomer(customerToDelete)
+    loadCustomers()
+    toast({ title: t.success, description: "Customer removed." })
+    setCustomerToDelete(null)
   }
 
   const handlePayDebt = () => {
@@ -238,7 +249,7 @@ export default function CustomersPage() {
                     <Button variant="ghost" size="icon" onClick={() => openEdit(customer)}>
                       <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(customer.id)}>
+                    <Button variant="ghost" size="icon" onClick={() => setCustomerToDelete(customer.id)}>
                       <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </Button>
                     {customer.totalDebt > 0 && (
@@ -315,6 +326,23 @@ export default function CustomersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!customerToDelete} onOpenChange={(open) => !open && setCustomerToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteConfirm}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCustomerToDelete(null)}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700">
+              {t.save}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
