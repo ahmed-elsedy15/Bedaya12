@@ -66,22 +66,27 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" side={dir === "rtl" ? "right" : "left"}>
-      <SidebarHeader className="h-24 flex items-center px-4 border-b bg-primary/5">
-        <div className="flex items-center gap-4 w-full">
+      <SidebarHeader className={cn(
+        "h-24 flex items-center border-b bg-primary/5 transition-all duration-300",
+        state === "collapsed" ? "px-0 justify-center" : "px-4"
+      )}>
+        <div className={cn(
+          "flex items-center w-full",
+          state === "collapsed" ? "justify-center" : "gap-4"
+        )}>
           <div className="min-w-12 w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-xl shadow-primary/20 shrink-0 transform transition-transform duration-300 hover:rotate-6">
             <Store className="h-7 w-7" />
           </div>
-          <div className={cn(
-            "flex flex-col transition-all duration-300",
-            state === "collapsed" ? "opacity-0 w-0 scale-95" : "opacity-100 scale-100"
-          )}>
-            <span className="font-headline font-black text-2xl tracking-tight whitespace-nowrap text-primary">
-              Bedaya
-            </span>
-            <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] whitespace-nowrap">
-              Enterprise
-            </span>
-          </div>
+          {state !== "collapsed" && (
+            <div className="flex flex-col overflow-hidden animate-in fade-in slide-in-from-left-2 duration-300">
+              <span className="font-headline font-black text-2xl tracking-tight whitespace-nowrap text-primary">
+                Bedaya
+              </span>
+              <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+                Enterprise
+              </span>
+            </div>
+          )}
         </div>
       </SidebarHeader>
       <SidebarContent className="py-4">
