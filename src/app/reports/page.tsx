@@ -12,6 +12,16 @@ import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function ReportsPage() {
   const { t } = useTranslation()
@@ -21,7 +31,10 @@ export default function ReportsPage() {
   const [summary, setSummary] = useState<string | null>(null)
   const [isSummarizing, setIsSummarizing] = useState(false)
 
-  // تحميل المبيعات بناءً على التاريخ المختار
+  // States for confirmation dialogs
+  const [saleToReturn, setSaleToReturn] = useState<string | null>(null)
+  const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
+
   const loadSales = useCallback(() => {
     const dateToLoad = selectedDate || getLocalDateString();
     const allSales = db.getSales()
@@ -29,7 +42,6 @@ export default function ReportsPage() {
     setSales(filtered)
   }, [selectedDate])
 
-  // ضبط التاريخ الابتدائي ليكون التاريخ المحلي عند تحميل المكون
   useEffect(() => {
     setSelectedDate(getLocalDateString());
   }, [])
@@ -72,24 +84,24 @@ export default function ReportsPage() {
     }
   }
 
-  const handleReturn = (saleId: string) => {
-    if (confirm(t.confirmReturn)) {
-      const success = db.returnSale(saleId);
-      if (success) {
-        toast({ title: t.success, description: t.saleReturned })
-        loadSales();
-      }
+  const confirmReturn = () => {
+    if (!saleToReturn) return;
+    const success = db.returnSale(saleToReturn);
+    if (success) {
+      toast({ title: t.success, description: t.saleReturned })
+      loadSales();
     }
+    setSaleToReturn(null);
   }
 
-  const handleDelete = (saleId: string) => {
-    if (confirm(t.deleteConfirm)) {
-      const success = db.deleteSale(saleId);
-      if (success) {
-        toast({ title: t.success, description: t.success })
-        loadSales();
-      }
+  const confirmDelete = () => {
+    if (!saleToDelete) return;
+    const success = db.deleteSale(saleToDelete);
+    if (success) {
+      toast({ title: t.success, description: t.success })
+      loadSales();
     }
+    setSaleToDelete(null);
   }
 
   return (
@@ -172,7 +184,7 @@ export default function ReportsPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleReturn(sale.id)} 
+                            onClick={() => setSaleToReturn(sale.id)} 
                             className="h-8 w-8 hover:bg-orange-50 text-orange-500"
                             title={t.returnSale}
                           >
@@ -181,7 +193,7 @@ export default function ReportsPage() {
                           <Button 
                             variant="ghost" 
                             size="icon" 
-                            onClick={() => handleDelete(sale.id)} 
+                            onClick={() => setSaleToDelete(sale.id)} 
                             className="h-8 w-8 hover:bg-red-50 text-red-500"
                             title={t.remove}
                           >
@@ -230,6 +242,42 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
+
+      {/* Return Sale Confirmation Dialog */}
+      <AlertDialog open={!!saleToReturn} onOpenChange={(open) => !open && setSaleToReturn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.confirmReturn}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.confirmReturn}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSaleToReturn(null)}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReturn} className="bg-orange-600 hover:bg-orange-700">
+              {t.save}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Sale Confirmation Dialog */}
+      <AlertDialog open={!!saleToDelete} onOpenChange={(open) => !open && setSaleToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.deleteConfirm}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSaleToDelete(null)}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
+              {t.save}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -17,6 +17,16 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Switch } from "@/components/ui/switch"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface CartItem {
   id: string;
@@ -51,6 +61,9 @@ export default function SalesEntryPage() {
   const [customerSearch, setCustomerSearch] = useState("")
   const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false)
   const [isCustomerPopoverOpen, setIsCustomerPopoverOpen] = useState(false)
+
+  // State for return confirmation
+  const [saleToReturn, setSaleToReturn] = useState<string | null>(null)
 
   const loadData = useCallback(() => {
     setProducts(db.getProducts().filter(p => p.quantity > 0))
@@ -172,13 +185,13 @@ export default function SalesEntryPage() {
     }
   }
 
-  const handleReturn = (saleId: string) => {
-    if (confirm(t.confirmReturn)) {
-      if (db.returnSale(saleId)) {
-        toast({ title: t.success, description: t.saleReturned })
-        loadData()
-      }
+  const confirmReturn = () => {
+    if (!saleToReturn) return;
+    if (db.returnSale(saleToReturn)) {
+      toast({ title: t.success, description: t.saleReturned })
+      loadData()
     }
+    setSaleToReturn(null);
   }
 
   return (
@@ -449,7 +462,7 @@ export default function SalesEntryPage() {
                   </TableCell>
                   <TableCell className="font-black text-primary text-right text-base">${sale.totalPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" className="hover:text-orange-600" onClick={() => handleReturn(sale.id)}>
+                    <Button variant="ghost" size="icon" className="hover:text-orange-600" onClick={() => setSaleToReturn(sale.id)}>
                       <History className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -459,6 +472,24 @@ export default function SalesEntryPage() {
           </Table>
         </div>
       </div>
+
+      {/* Return Sale Confirmation Dialog */}
+      <AlertDialog open={!!saleToReturn} onOpenChange={(open) => !open && setSaleToReturn(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t.confirmReturn}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t.confirmReturn}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSaleToReturn(null)}>{t.cancel}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmReturn} className="bg-orange-600 hover:bg-orange-700">
+              {t.save}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
