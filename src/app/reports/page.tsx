@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw, Trash2 } from "lucide-react"
+import { Calendar as CalendarIcon, Sparkles, Loader2, RotateCcw } from "lucide-react"
 import { summarizeDailySales } from "@/ai/flows/ai-sales-summary-flow"
 import { useTranslation } from "@/context/language-context"
 import { useToast } from "@/hooks/use-toast"
@@ -33,7 +33,6 @@ export default function ReportsPage() {
 
   // States for confirmation dialogs
   const [saleToReturn, setSaleToReturn] = useState<string | null>(null)
-  const [saleToDelete, setSaleToDelete] = useState<string | null>(null)
 
   const loadSales = useCallback(() => {
     const dateToLoad = selectedDate || getLocalDateString();
@@ -92,16 +91,6 @@ export default function ReportsPage() {
       loadSales();
     }
     setSaleToReturn(null);
-  }
-
-  const confirmDelete = () => {
-    if (!saleToDelete) return;
-    const success = db.deleteSale(saleToDelete);
-    if (success) {
-      toast({ title: t.success, description: t.success })
-      loadSales();
-    }
-    setSaleToDelete(null);
   }
 
   return (
@@ -180,7 +169,7 @@ export default function ReportsPage() {
                             <span className="text-xs text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right flex items-center justify-end gap-1">
+                        <TableCell className="text-right">
                           <Button 
                             variant="ghost" 
                             size="icon" 
@@ -189,15 +178,6 @@ export default function ReportsPage() {
                             title={t.returnSale}
                           >
                             <RotateCcw className="h-4 w-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => setSaleToDelete(sale.id)} 
-                            className="h-8 w-8 hover:bg-red-50 text-red-500"
-                            title={t.remove}
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -255,24 +235,6 @@ export default function ReportsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setSaleToReturn(null)}>{t.cancel}</AlertDialogCancel>
             <AlertDialogAction onClick={confirmReturn} className="bg-orange-600 hover:bg-orange-700">
-              {t.save}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Delete Sale Confirmation Dialog */}
-      <AlertDialog open={!!saleToDelete} onOpenChange={(open) => !open && setSaleToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t.deleteConfirm}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t.deleteConfirm}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setSaleToDelete(null)}>{t.cancel}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
               {t.save}
             </AlertDialogAction>
           </AlertDialogFooter>
