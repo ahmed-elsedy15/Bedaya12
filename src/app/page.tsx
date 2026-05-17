@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useEffect, useState, useRef, useCallback } from "react"
@@ -31,17 +32,17 @@ export default function Dashboard() {
     const todayStr = getLocalDateString();
     const currentMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
     
-    // 1. إحصائيات اليوم (مبيعات اليوم)
-    const salesToday = allSales.filter(s => s.date && s.date.trim() === todayStr);
+    // 1. إحصائيات اليوم (بناءً على مبيعات اليوم)
+    const salesToday = allSales.filter(s => s.date === todayStr);
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitToday = salesToday.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
     const debtIssuedToday = salesToday.reduce((sum, s) => sum + (Number(s.debtAmount) || 0), 0);
 
-    // 2. الديون المسددة اليوم (من سجل المدفوعات)
+    // 2. الديون المسددة اليوم (من سجل المدفوعات الفعلي)
     const paymentsToday = allPayments.filter(p => p.date === todayStr);
     const debtPaidToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // 3. إحصائيات الشهر
+    // 3. إحصائيات الشهر (تشمل اليوم الحالي)
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
     const revenueMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
@@ -126,7 +127,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* الصف العلوي: إحصائيات اليوم الأساسية */}
+      {/* الصف العلوي: إحصائيات اليوم */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-none shadow-md bg-blue-50 dark:bg-blue-900/10">
           <CardHeader className="pb-2">
@@ -163,7 +164,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700 dark:text-red-400">${stats.debtIssuedToday.toFixed(2)}</div>
-            <p className="text-[10px] text-red-600/80">ديون خرجت من المبيعات اليوم</p>
+            <p className="text-[10px] text-red-600/80">الديون التي خرجت اليوم</p>
           </CardContent>
         </Card>
 
@@ -192,7 +193,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">${stats.revenueMonth.toFixed(2)}</div>
-            <p className="text-[10px] text-muted-foreground">إجمالي قيمة مبيعات الشهر</p>
+            <p className="text-[10px] text-muted-foreground">إجمالي مبيعات الشهر</p>
           </CardContent>
         </Card>
 
@@ -205,7 +206,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-xl font-bold">${stats.profitMonth.toFixed(2)}</div>
-            <p className="text-[10px] opacity-80">إجمالي صافي أرباح الشهر</p>
+            <p className="text-[10px] opacity-80">صافي أرباح الشهر</p>
           </CardContent>
         </Card>
 
