@@ -167,6 +167,19 @@ export const db = {
     return newCustomer;
   },
 
+    updateCustomer: (id: string, updates: Partial<Customer>) => {
+    const customers = db.getCustomers();
+    const updated = customers.map((c) => (c.id === id ? { ...c, ...updates } : c));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
+    db.notify();
+  },
+
+  deleteCustomer: (id: string) => {
+    const customers = db.getCustomers();
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(customers.filter((c) => c.id !== id)));
+    db.notify();
+  },
+
   updateCustomerDebt: (id: string, amount: number) => {
     const customers = db.getCustomers();
     const customer = customers.find(c => c.id === id);
