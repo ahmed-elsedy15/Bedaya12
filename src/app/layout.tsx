@@ -46,7 +46,7 @@ export default function RootLayout({
                   <div className="flex items-center gap-2">
                     <div className="w-12 h-12 rounded-lg  flex items-center justify-center text-primary font-bold text-sm">
                       <img
-                        src="/KING2.PNG"
+                        src="/king2.png"
                         alt="Bedaya"
                         width={40}
                         height={40}

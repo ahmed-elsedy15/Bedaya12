@@ -112,7 +112,7 @@ export default function Dashboard() {
     <div
       className="p-8 space-y-8 min-h-screen bg-center bg-cover bg-no-repeat"
       style={{
-        backgroundImage: "url('/KING2.png')",
+        backgroundImage: "url('/king2.png')",
         backgroundSize: "400px",
         backgroundPosition: "bottom center"
       }}
