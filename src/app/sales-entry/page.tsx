@@ -45,7 +45,7 @@ export default function SalesEntryPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
-  
+
   const [selectedProductId, setSelectedProductId] = useState("")
   const [selectedCustomerId, setSelectedCustomerId] = useState("")
   const [isNewCustomer, setIsNewCustomer] = useState(false)
@@ -54,9 +54,9 @@ export default function SalesEntryPage() {
   const [quantity, setQuantity] = useState("1")
   const [itemDiscount, setItemDiscount] = useState("0")
   const [paidNow, setPaidNow] = useState("0")
-  
+
   const [cart, setCart] = useState<CartItem[]>([])
-  
+
   const [productSearch, setProductSearch] = useState("")
   const [customerSearch, setCustomerSearch] = useState("")
   const [isProductPopoverOpen, setIsProductPopoverOpen] = useState(false)
@@ -134,7 +134,7 @@ export default function SalesEntryPage() {
 
   const handleCompleteSale = () => {
     if (cart.length === 0) return;
-    
+
     if (paymentType === 'credit' && !selectedCustomerId && !isNewCustomer) {
       toast({ title: t.error, description: t.customer, variant: "destructive" });
       return;
@@ -163,10 +163,10 @@ export default function SalesEntryPage() {
       cart.forEach(item => {
         const itemDebt = item.total * debtRatio;
         db.recordSale(
-          item.productId, 
-          item.quantity, 
-          paymentType, 
-          finalCustomerId || undefined, 
+          item.productId,
+          item.quantity,
+          paymentType,
+          finalCustomerId || undefined,
           item.discount,
           itemDebt
         )
@@ -317,7 +317,7 @@ export default function SalesEntryPage() {
                 {isNewCustomer ? (
                   <div className="grid gap-2">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.customerName}</Label>
-                    <Input 
+                    <Input
                       placeholder={t.customerName}
                       value={newCustomerName}
                       onChange={(e) => setNewCustomerName(e.target.value)}
@@ -384,7 +384,7 @@ export default function SalesEntryPage() {
               <ScrollArea className="h-[400px]">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-slate-50/50 border-none">
+                    <TableRow className="bg-slate-50/5 border-none">
                       <TableHead>{t.product}</TableHead>
                       <TableHead>{t.price}</TableHead>
                       <TableHead>{t.qty}</TableHead>
@@ -426,8 +426,8 @@ export default function SalesEntryPage() {
               <span className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.finalTotal}</span>
               <div className="text-6xl font-black text-accent font-mono tracking-tighter">${finalTotal.toFixed(2)}</div>
             </div>
-            <Button 
-              className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-10 text-2xl group rounded-xl" 
+            <Button
+              className="w-full bg-accent hover:bg-accent/90 text-primary font-bold py-10 text-2xl group rounded-xl"
               disabled={cart.length === 0}
               onClick={handleCompleteSale}
             >
@@ -445,15 +445,30 @@ export default function SalesEntryPage() {
         </h3>
         <div className="rounded-2xl border bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
           <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/5">
+                <TableHead>{t.time}</TableHead>
+                <TableHead>{t.product}</TableHead>
+                <TableHead>{t.qty}</TableHead>
+                <TableHead>{t.paymentType}</TableHead>
+                <TableHead className="text-right">{t.totalPrice}</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
             <TableBody>
               {recentSales.map(sale => (
                 <TableRow key={sale.id} className="text-sm">
-                  <TableCell className="py-4">
-                    <div className="font-bold text-slate-700 dark:text-slate-300">{sale.productName}</div>
-                    <div className="text-[10px] text-muted-foreground">
-                      {sale.customerName && <span className="text-blue-600 font-medium mr-1">[{sale.customerName}]</span>}
-                      {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <TableCell className="py-4 text-[10px] text-muted-foreground whitespace-nowrap">
+                    {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-bold text-slate-700 dark:text-slate-300">
+                      {sale.productName}
                     </div>
+                    {sale.customerName && <div className="text-[10px] text-blue-600 font-medium">[{sale.customerName}]</div>}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">{sale.quantitySold}</Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={sale.paymentType === 'cash' ? "default" : "outline"} className={sale.paymentType === 'credit' ? "text-orange-600 border-orange-200" : ""}>
