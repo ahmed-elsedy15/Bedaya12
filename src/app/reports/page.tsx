@@ -111,6 +111,7 @@ export default function ReportsPage() {
                 <TableRow className="bg-muted/50 border-none">
                   <TableHead>{t.time}</TableHead>
                   <TableHead>{t.product}</TableHead>
+                  <TableHead>{t.discount}</TableHead>
                   <TableHead>{t.customer}</TableHead>
                   <TableHead>{t.totalPrice}</TableHead>
                   <TableHead>{t.debt}</TableHead>
@@ -127,6 +128,9 @@ export default function ReportsPage() {
                       <TableCell>
                         <div className="font-medium">{sale.productName}</div>
                         <div className="text-[10px] text-muted-foreground">الكمية: {sale.quantitySold}</div>
+                      </TableCell>
+                         <TableCell className="text-red-500 text-xs">
+                        {sale.discount > 0 ? `-$${sale.discount.toFixed(2)}` : "-"}
                       </TableCell>
                       <TableCell>
                         <span className="text-sm font-medium text-slate-600">

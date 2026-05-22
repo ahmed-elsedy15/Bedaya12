@@ -41,7 +41,7 @@ interface CartItem {
 export default function SalesEntryPage() {
   const { t } = useTranslation()
   const { toast } = useToast()
-  
+
   const [products, setProducts] = useState<Product[]>([])
   const [customers, setCustomers] = useState<Customer[]>([])
   const [recentSales, setRecentSales] = useState<Sale[]>([])
@@ -93,7 +93,7 @@ export default function SalesEntryPage() {
   }, [customers, customerSearch])
 
   const selectedProduct = products.find(p => p.id === selectedProductId)
-  
+
   const addToCart = () => {
     if (!selectedProductId || !selectedProduct) return;
     const qty = parseInt(quantity);
@@ -193,6 +193,15 @@ export default function SalesEntryPage() {
     }
     setSaleToReturn(null);
   }
+  
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+  };
+
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <div className="p-4 md:p-8 space-y-8 bg-slate-50/50 dark:bg-transparent min-h-screen">
@@ -450,6 +459,7 @@ export default function SalesEntryPage() {
                 <TableHead>{t.time}</TableHead>
                 <TableHead>{t.product}</TableHead>
                 <TableHead>{t.qty}</TableHead>
+                <TableHead>{t.discount}</TableHead>
                 <TableHead>{t.paymentType}</TableHead>
                 <TableHead className="text-right">{t.totalPrice}</TableHead>
                 <TableHead></TableHead>
@@ -458,8 +468,11 @@ export default function SalesEntryPage() {
             <TableBody>
               {recentSales.map(sale => (
                 <TableRow key={sale.id} className="text-sm">
-                  <TableCell className="py-4 text-[10px] text-muted-foreground whitespace-nowrap">
-                    {new Date(sale.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  <TableCell className="py-4 text-[10px] text-muted-foreground">
+                    <div className="flex flex-col">
+                      <span className="whitespace-nowrap">{formatDate(sale.timestamp)}</span>
+                      <span className="font-medium opacity-80">{formatTime(sale.timestamp)}</span>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="font-bold text-slate-700 dark:text-slate-300">
@@ -469,6 +482,9 @@ export default function SalesEntryPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{sale.quantitySold}</Badge>
+                  </TableCell>
+                  <TableCell className="text-red-500 text-xs">
+                    {sale.discount > 0 ? `-$${(sale.discount || 0).toFixed(2)}` : "-"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={sale.paymentType === 'cash' ? "default" : "outline"} className={sale.paymentType === 'credit' ? "text-orange-600 border-orange-200" : ""}>
