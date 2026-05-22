@@ -8,8 +8,11 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/context/language-context';
 
 export const metadata: Metadata = {
-  title: 'SaleSphere | Sales Management',
-  description: 'Manage products and track daily sales with AI insights',
+  title: 'Bedaya يداية لادارة المبيعات',
+  description: 'Manage products and track daily sales ',
+  icons: {
+    icon: './king2.png',
+  },
 };
 
 export default function RootLayout({
