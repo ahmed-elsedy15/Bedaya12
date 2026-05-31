@@ -1,7 +1,7 @@
 
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, Store } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, Store, Receipt } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -59,6 +59,11 @@ export function AppSidebar() {
       title: t.reports,
       url: "/reports",
       icon: BarChart3,
+    },
+    {
+      title: t.expenses,
+      url: "/expenses",
+      icon: Receipt,
     },
   ]
 

@@ -47,11 +47,21 @@ export interface Payment {
   timestamp: number;
 }
 
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  date: string;
+  timestamp: number;
+}
+
 const STORAGE_KEYS = {
   PRODUCTS: 'salesphere_products',
   SALES: 'salesphere_sales',
   CUSTOMERS: 'salesphere_customers',
   PAYMENTS: 'salesphere_payments',
+  EXPENSES: 'salesphere_expenses',
 };
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
@@ -119,6 +129,16 @@ export const db = {
     if (typeof window === 'undefined') return [];
     try {
       const stored = localStorage.getItem(STORAGE_KEYS.PAYMENTS);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getExpenses: (): Expense[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.EXPENSES);
       return stored ? JSON.parse(stored) : [];
     } catch (e) {
       return [];
@@ -283,12 +303,22 @@ export const db = {
     return true;
   },
 
-  deleteSale: (saleId: string) => {
-    const sales = db.getSales();
-    const updatedSales = sales.filter(s => s.id !== saleId);
-    localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
+  addExpense: (expense: Omit<Expense, 'id' | 'timestamp'>) => {
+    const expenses = db.getExpenses();
+    const newExpense: Expense = {
+      ...expense,
+      id: crypto.randomUUID(),
+      timestamp: Date.now()
+    };
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([newExpense, ...expenses]));
     db.notify();
-    return true;
+    return newExpense;
+  },
+
+  deleteExpense: (id: string) => {
+    const expenses = db.getExpenses();
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses.filter(e => e.id !== id)));
+    db.notify();
   },
 
   importAll: (data: any) => {
@@ -296,6 +326,7 @@ export const db = {
     if (data.sales) localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(data.sales));
     if (data.customers) localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(data.customers));
     if (data.payments) localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(data.payments));
+    if (data.expenses) localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
     db.notify();
   }
 };

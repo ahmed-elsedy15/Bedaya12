@@ -8,7 +8,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/context/language-context';
 
 export const metadata: Metadata = {
-  title: 'Bedaya يداية لادارة المبيعات',
+  title: 'Bedaya بداية لادارة المبيعات',
   description: 'Manage products and track daily sales ',
   icons: {
     icon: './king2.png',
