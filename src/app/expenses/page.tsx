@@ -83,6 +83,37 @@ export default function ExpensesPage() {
     .filter(e => e.date === getLocalDateString())
     .reduce((sum, e) => sum + e.amount, 0)
 
+  const getCurrentMonthExpenses = () => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth()
+    return expenses
+      .filter(e => {
+        const expenseDate = new Date(e.date)
+        return expenseDate.getFullYear() === currentYear && expenseDate.getMonth() === currentMonth
+      })
+      .reduce((sum, e) => sum + e.amount, 0)
+  }
+
+  const getLastMonthExpenses = () => {
+    const now = new Date()
+    let year = now.getFullYear()
+    let month = now.getMonth() - 1
+    if (month < 0) {
+      month = 11
+      year -= 1
+    }
+    return expenses
+      .filter(e => {
+        const expenseDate = new Date(e.date)
+        return expenseDate.getFullYear() === year && expenseDate.getMonth() === month
+      })
+      .reduce((sum, e) => sum + e.amount, 0)
+  }
+
+  const totalCurrentMonth = getCurrentMonthExpenses()
+  const totalLastMonth = getLastMonthExpenses()
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
@@ -153,7 +184,29 @@ export default function ExpensesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-700 dark:text-red-400">${totalExpensesToday.toFixed(2)}</div>
-            <p className="text-xs text-red-600/80 dark:text-red-400/80">إجمالي المصروفات لليوم</p>
+            <p className="text-xs text-red-600/80 dark:text-red-400/80">إجمالي مصروفات اليوم</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-md bg-blue-50 dark:bg-blue-900/10 col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">مصروفات الشهر الحالي</CardTitle>
+            <Calendar className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">${totalCurrentMonth.toFixed(2)}</div>
+            <p className="text-xs text-blue-600/80 dark:text-blue-400/80">إجمالي مصروفات الشهر</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-md bg-green-50 dark:bg-green-900/10 col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">مصروفات الشهر الماضي</CardTitle>
+            <Calendar className="w-4 h-4 text-green-600 dark:text-green-400" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-green-700 dark:text-green-400">${totalLastMonth.toFixed(2)}</div>
+            <p className="text-xs text-green-600/80 dark:text-green-400/80">إجمالي مصروفات الشهر الماضي</p>
           </CardContent>
         </Card>
       </div>
