@@ -20,6 +20,8 @@ export default function Dashboard() {
     profitToday: 0,
     profitMonth: 0,
     revenueMonth: 0,
+    revenueLastMonth: 0,
+    profitLastMonth: 0,
     debtIssuedToday: 0,
     debtPaidToday: 0,
   })
@@ -32,6 +34,13 @@ export default function Dashboard() {
     const todayStr = getLocalDateString();
     const currentMonthPrefix = todayStr.substring(0, 7); // YYYY-MM
 
+    // حساب الشهر الماضي
+    const today = new Date();
+    let lastMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    const lastMonthYear = lastMonthDate.getFullYear();
+    const lastMonthMonth = lastMonthDate.getMonth() + 1; // شهر من 1 إلى 12
+    const lastMonthPrefix = `${lastMonthYear}-${String(lastMonthMonth).padStart(2, '0')}`; // YYYY-MM
+
     // 1. إحصائيات اليوم (بناءً على مبيعات اليوم)
     const salesToday = allSales.filter(s => s.date === todayStr);
     const revenueToday = salesToday.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
@@ -42,10 +51,15 @@ export default function Dashboard() {
     const paymentsToday = allPayments.filter(p => p.date === todayStr);
     const debtPaidToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
 
-    // 3. إحصائيات الشهر (تشمل اليوم الحالي)
+    // 3. إحصائيات الشهر الحالي (تشمل اليوم الحالي)
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
     const revenueMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
     const profitMonthTotal = salesMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
+
+    // 4. إحصائيات الشهر الماضي
+    const salesLastMonth = allSales.filter(s => s.date && s.date.startsWith(lastMonthPrefix));
+    const revenueLastMonthTotal = salesLastMonth.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0);
+    const profitLastMonthTotal = salesLastMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
 
     setStats({
       totalProducts: products.length,
@@ -54,6 +68,8 @@ export default function Dashboard() {
       profitToday: profitToday,
       profitMonth: profitMonthTotal,
       revenueMonth: revenueMonthTotal,
+      revenueLastMonth: revenueLastMonthTotal,
+      profitLastMonth: profitLastMonthTotal,
       debtIssuedToday: debtIssuedToday,
       debtPaidToday: debtPaidToday,
     });
@@ -214,6 +230,32 @@ export default function Dashboard() {
           <CardContent>
             <div className="text-xl font-bold">${stats.profitMonth.toFixed(2)}</div>
             <p className="text-[10px] opacity-80">صافي أرباح الشهر</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-slate-100 dark:bg-slate-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between text-slate-700 dark:text-slate-300">
+              إيرادات الشهر الماضي
+              <BarChart2 className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-slate-800 dark:text-slate-100">${stats.revenueLastMonth.toFixed(2)}</div>
+            <p className="text-[10px] text-slate-600 dark:text-slate-400">مبيعات الشهر السابق</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-indigo-50 dark:bg-indigo-900/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium flex items-center justify-between text-indigo-700 dark:text-indigo-300">
+              ربح الشهر الماضي
+              <TrendingUp className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-xl font-bold text-indigo-700 dark:text-indigo-300">${stats.profitLastMonth.toFixed(2)}</div>
+            <p className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80">صافي الأرباح السابقة</p>
           </CardContent>
         </Card>
 
