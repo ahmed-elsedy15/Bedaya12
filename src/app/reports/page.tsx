@@ -58,6 +58,11 @@ export default function ReportsPage() {
   }, [loadSales, selectedDate])
 
   const totalAmount = sales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
+  const drawerAmount = sales.reduce((sum, s) => {
+    const total = Number(s.totalPrice) || 0
+    const debt = Number((s as any).debtAmount) || 0
+    return sum + (total - debt)
+  }, 0)
 
   const confirmReturn = () => {
     if (!saleToReturn) return;
@@ -102,6 +107,7 @@ export default function ReportsPage() {
               <div className="text-right">
                 <div className="text-3xl font-bold">${totalAmount.toFixed(2)}</div>
                 <div className="text-xs opacity-80 uppercase font-semibold">{t.todayRevenue}</div>
+                <div className="mt-1 text-sm text-white/90">{t.drawerAmount}: <span className="font-semibold">${drawerAmount.toFixed(2)}</span></div>
               </div>
             </div>
           </CardHeader>
