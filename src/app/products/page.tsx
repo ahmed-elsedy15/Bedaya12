@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
 import { useTranslation } from "@/context/language-context"
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import {
 
 export default function ProductsPage() {
   const { t, lang } = useTranslation()
+  const router = useRouter()
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -147,7 +149,11 @@ export default function ProductsPage() {
                   placeholder="••••"
                 />
                 {pinError && <p className="text-sm text-red-400">الرقم غير صحيح، حاول مرة أخرى.</p>}
-                <Button type="submit" className="w-full">دخول</Button>
+                <div className="flex flex-col gap-2">
+                  <Button type="submit" className="w-full">دخول</Button>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => router.push('/sales-entry')}>سجل مبيعاتك الان</Button>
+
+                </div>
               </form>
             </div>
           </div>

@@ -8,12 +8,14 @@ import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } 
 import * as RechartsPrimitive from "recharts"
 import { DollarSign, BarChart2, Download, Upload, TrendingUp, ArrowUpRight, ShoppingBag, Box, Wallet } from "lucide-react"
 import { useTranslation } from "@/context/language-context"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
   const { t } = useTranslation()
   const { toast } = useToast()
+  const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -195,7 +197,11 @@ export default function Dashboard() {
                   placeholder="••••"
                 />
                 {pinError && <p className="text-sm text-red-400">الرقم غير صحيح، حاول مرة أخرى.</p>}
-                <Button type="submit" className="w-full">دخول</Button>
+                <div className="flex flex-col gap-2">
+                  <Button type="submit" className="w-full">دخول</Button>
+                  <Button type="button" variant="outline" className="w-full" onClick={() => router.push('/sales-entry')}>سجل مبيعاتك الان</Button>
+
+                </div>
               </form>
             </div>
           </div>
