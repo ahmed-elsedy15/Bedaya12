@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef, FormEvent } from "react"
 import { db, Product, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
@@ -23,12 +23,17 @@ import {
 } from "@/components/ui/alert-dialog"
 
 export default function ProductsPage() {
-  const { t } = useTranslation()
+  const { t, lang } = useTranslation()
   const [products, setProducts] = useState<Product[]>([])
   const [search, setSearch] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [productToDelete, setProductToDelete] = useState<string | null>(null)
+  const [isUnlocked, setIsUnlocked] = useState(false)
+  const [enteredPin, setEnteredPin] = useState("")
+  const [pinError, setPinError] = useState(false)
+  const pinInputRef = useRef<HTMLInputElement>(null)
+  const DASHBOARD_PIN = "201499" // عدل هذا الرقم السري كما تريد
   const { toast } = useToast()
 
   const [formData, setFormData] = useState({ name: "", purchasePrice: "", sellingPrice: "", quantity: "" })
@@ -48,6 +53,23 @@ export default function ProductsPage() {
       window.removeEventListener('storage', loadProducts)
     };
   }, [loadProducts])
+
+  useEffect(() => {
+    if (!isUnlocked) {
+      pinInputRef.current?.focus()
+    }
+  }, [isUnlocked])
+
+  const handlePinSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (enteredPin.trim() === DASHBOARD_PIN) {
+      setIsUnlocked(true)
+      setPinError(false)
+      setEnteredPin("")
+    } else {
+      setPinError(true)
+    }
+  }
 
   const handleSave = () => {
     if (!formData.name || !formData.purchasePrice || !formData.sellingPrice || !formData.quantity) {
@@ -104,8 +126,34 @@ export default function ProductsPage() {
   )
 
   return (
-    <div className="p-8 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="relative p-8 space-y-10">
+      <div className="relative">
+        {!isUnlocked && (
+          <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-slate-950/85 px-4 backdrop-blur-sm">
+            <div className="pointer-events-auto w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl">
+              <h2 className="text-xl font-semibold text-white">ادخل الرقم السري</h2>
+              <p className="mt-2 text-sm text-slate-400">هذه الصفحة محمية برقم سري. لا يمكن رؤية المنتجات إلا بعد إدخاله.</p>
+              <form onSubmit={handlePinSubmit} className="mt-5 space-y-4">
+                <label className="block text-sm font-medium text-slate-200">الرقم السري</label>
+                <input
+                  ref={pinInputRef}
+                  type="password"
+                  value={enteredPin}
+                  onChange={(e) => {
+                    setEnteredPin(e.target.value)
+                    if (pinError) setPinError(false)
+                  }}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-white placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/40"
+                  placeholder="••••"
+                />
+                {pinError && <p className="text-sm text-red-400">الرقم غير صحيح، حاول مرة أخرى.</p>}
+                <Button type="submit" className="w-full">دخول</Button>
+              </form>
+            </div>
+          </div>
+        )}
+        <div className={`${!isUnlocked ? "blur-2xl" : ""} space-y-8`}>
+        <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between   dark:border-slate-700">
         <div>
           <h1 className="text-3xl font-headline font-bold text-primary">{t.products}</h1>
           <p className="text-muted-foreground">{t.welcome}</p>
@@ -174,18 +222,17 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
       </div>
-
-      <div className="relative">
-        <Search className={`absolute ${t.lang === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
-        <Input 
-          className={t.lang === 'ar' ? 'pr-10' : 'pl-10'} 
-          placeholder={t.searchProducts} 
+      </div>
+      <div className="relative mt-10">
+          <Search className={`absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
+          <Input 
+            className={lang === 'ar' ? 'pr-10' : 'pl-10'} 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden mt-8">
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
@@ -194,7 +241,7 @@ export default function ProductsPage() {
               <TableHead>{t.sellingPrice}</TableHead>
               <TableHead>{t.expectedProfit}</TableHead>
               <TableHead>{t.stock}</TableHead>
-              <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
+              <TableHead className={lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -220,7 +267,7 @@ export default function ProductsPage() {
                         {product.quantity} {t.units}
                       </span>
                     </TableCell>
-                    <TableCell className={`${t.lang === 'ar' ? 'text-left' : 'text-right'} space-x-2 rtl:space-x-reverse`}>
+                    <TableCell className={`${lang === 'ar' ? 'text-left' : 'text-right'} space-x-2 rtl:space-x-reverse`}>
                       <Button variant="ghost" size="icon" onClick={() => openEdit(product)}>
                         <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </Button>
@@ -259,5 +306,6 @@ export default function ProductsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  </div>
   )
 }
