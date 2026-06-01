@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useEffect, useState, useRef, useCallback } from "react"
+import { useEffect, useState, useRef, useCallback, FormEvent } from "react"
 import { db, getLocalDateString, DB_UPDATE_EVENT } from "@/lib/db"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltipContent } from "@/components/ui/chart"
@@ -28,6 +28,11 @@ export default function Dashboard() {
     debtPaidToday: 0,
   })
   const [monthlyChartData, setMonthlyChartData] = useState<{ month: string; revenue: number; profit: number; expenses?: number }[]>([])
+  const [isUnlocked, setIsUnlocked] = useState(false)
+  const [enteredPin, setEnteredPin] = useState("")
+  const [pinError, setPinError] = useState(false)
+  const pinInputRef = useRef<HTMLInputElement>(null)
+  const DASHBOARD_PIN = "201499" // عدل هذا الرقم السري كما تريد
 
   const loadStats = useCallback(() => {
     const products = db.getProducts();
@@ -105,6 +110,23 @@ export default function Dashboard() {
     }
   }, [loadStats])
 
+  useEffect(() => {
+    if (!isUnlocked) {
+      pinInputRef.current?.focus()
+    }
+  }, [isUnlocked])
+
+  const handlePinSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (enteredPin.trim() === DASHBOARD_PIN) {
+      setIsUnlocked(true)
+      setPinError(false)
+      setEnteredPin("")
+    } else {
+      setPinError(true)
+    }
+  }
+
   const handleExport = () => {
     const data = {
       products: db.getProducts(),
@@ -146,14 +168,40 @@ export default function Dashboard() {
 
   return (
     <div
-      className="p-8 space-y-8 min-h-screen bg-center bg-cover bg-no-repeat"
+      className="relative p-8 min-h-screen bg-center bg-cover bg-no-repeat"
       style={{
         backgroundImage: "url('/king2.png')",
         backgroundSize: "450px",
         backgroundPosition: "bottom center"
       }}
     >
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="relative">
+        {!isUnlocked && (
+          <div className="fixed inset-0 z-50 pointer-events-none flex items-center justify-center bg-slate-950/85 px-4 backdrop-blur-sm">
+            <div className="pointer-events-auto w-full max-w-sm rounded-3xl border border-slate-700 bg-slate-900/95 p-6 shadow-2xl">
+              <h2 className="text-xl font-semibold text-white">ادخل الرقم السري</h2>
+              <p className="mt-2 text-sm text-slate-400">هذا الداشبورد محمي برقم سري. لا يمكن رؤية البيانات إلا بعد إدخاله.</p>
+              <form onSubmit={handlePinSubmit} className="mt-5 space-y-4">
+                <label className="block text-sm font-medium text-slate-200">الرقم السري</label>
+                <input
+                  ref={pinInputRef}
+                  type="password"
+                  value={enteredPin}
+                  onChange={(e) => {
+                    setEnteredPin(e.target.value)
+                    if (pinError) setPinError(false)
+                  }}
+                  className="w-full rounded-2xl border border-slate-700 bg-slate-950/90 px-4 py-3 text-white placeholder:text-slate-500 focus:border-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-500/40"
+                  placeholder="••••"
+                />
+                {pinError && <p className="text-sm text-red-400">الرقم غير صحيح، حاول مرة أخرى.</p>}
+                <Button type="submit" className="w-full">دخول</Button>
+              </form>
+            </div>
+          </div>
+        )}
+        <div className={`${!isUnlocked ? "blur-2xl" : ""} space-y-12`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 ">
         <div className="flex flex-col gap-1">
           <h1 className="text-3xl font-headline font-bold text-primary">{t.dashboard}</h1>
           <p className="text-muted-foreground">{t.welcome}</p>
@@ -169,9 +217,10 @@ export default function Dashboard() {
           <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
         </div>
       </div>
+      </div>
 
       {/* الصف العلوي: إحصائيات اليوم */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pt-10 mt-8">
         <Card className="border-none shadow-md bg-blue-50 dark:bg-blue-900/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between text-blue-800 dark:text-blue-300">
@@ -226,7 +275,7 @@ export default function Dashboard() {
       </div>
 
       {/* الصف السفلي: إحصائيات الشهر والمخزون */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 pt-4 border-t">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pt-6">
         <Card className="border-none shadow-sm bg-white dark:bg-slate-900/50">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center justify-between">
@@ -306,7 +355,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="rounded-xl border bg-white/80 dark:bg-slate-900/10 shadow-sm p-4 backdrop-blur-sm">
+      <div className="rounded-xl bg-white/80 dark:bg-slate-900/10 shadow-sm p-4 backdrop-blur-sm mt-10">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border">
           <div>
             <h2 className="text-lg font-semibold">مخطط الشهور السابقة</h2>
@@ -387,5 +436,6 @@ export default function Dashboard() {
         </ChartContainer>
       </div>
     </div>
+  </div>
   )
 }
