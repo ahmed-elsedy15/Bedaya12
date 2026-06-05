@@ -120,6 +120,7 @@ export const translations = {
     debtIssuedToday: "Debts Issued Today",
     debtCollectedToday: "Debts Collected Today",
     drawerAmount: "Amount in Drawer (excluding debts)",
+    debtDetails: "Debt Details",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -241,6 +242,7 @@ export const translations = {
     debtIssuedToday: "ديون مبيعات اليوم",
     debtCollectedToday: "ديون محصلة اليوم",
     drawerAmount: "المبلغ في الدرج (بدون الديون)",
+    debtDetails: "تفاصيل الديون",
   }
 };
 export type Language = "en" | "ar";

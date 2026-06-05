@@ -36,12 +36,22 @@ export interface Sale {
   paymentType: 'cash' | 'credit';
   discount: number;
   debtAmount: number; 
+  paidAmount?: number;
 }
 
 export interface Payment {
   id: string;
   customerId: string;
   customerName: string;
+  amount: number;
+  date: string;
+  timestamp: number;
+}
+
+export interface DebtPayment {
+  id: string;
+  saleId: string;
+  customerId: string;
   amount: number;
   date: string;
   timestamp: number;
@@ -62,6 +72,7 @@ const STORAGE_KEYS = {
   CUSTOMERS: 'salesphere_customers',
   PAYMENTS: 'salesphere_payments',
   EXPENSES: 'salesphere_expenses',
+  DEBT_PAYMENTS: 'salesphere_debt_payments',
 };
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
@@ -145,6 +156,62 @@ export const db = {
     }
   },
 
+  getDebtPayments: (): DebtPayment[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.DEBT_PAYMENTS);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  getUnpaidDebts: (customerId: string) => {
+    const sales = db.getSales();
+    const debtPayments = db.getDebtPayments();
+    
+    return sales.filter(sale => 
+      sale.customerId === customerId && 
+      sale.paymentType === 'credit' && 
+      Number(sale.debtAmount) > 0
+    ).map(sale => {
+      const paidAmount = debtPayments
+        .filter(dp => dp.saleId === sale.id)
+        .reduce((sum, dp) => sum + Number(dp.amount), 0);
+      
+      const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
+      return {
+        ...sale,
+        paidAmount,
+        remainingDebt,
+        isPaid: remainingDebt === 0
+      };
+    }).filter(sale => sale.remainingDebt > 0);
+  },
+
+  getDebtPaymentsByDate: (date: string) => {
+    const debtPayments = db.getDebtPayments();
+    return debtPayments.filter(dp => dp.date === date);
+  },
+
+  getDayDebtsSummary: (date: string) => {
+    const sales = db.getSales();
+    const debtPayments = db.getDebtPayments();
+    
+    const debtIssuedToday = sales
+      .filter(s => s.date === date && s.paymentType === 'credit')
+      .reduce((sum, s) => sum + Number(s.debtAmount || 0), 0);
+    
+    const debtCollectedToday = debtPayments
+      .filter(dp => dp.date === date)
+      .reduce((sum, dp) => sum + Number(dp.amount), 0);
+    
+    return {
+      issuedToday: debtIssuedToday,
+      collectedToday: debtCollectedToday
+    };
+  },
+
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
     const products = db.getProducts();
     const newProduct: Product = {
@@ -219,6 +286,29 @@ export const db = {
     }
 
     const updated = customers.map(c => (c.id === id ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) + Number(amount)) } : c));
+    localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
+    db.notify();
+  },
+
+  payDebtForSale: (saleId: string, customerId: string, amount: number) => {
+    const debtPayments = db.getDebtPayments();
+    const newDebtPayment: DebtPayment = {
+      id: crypto.randomUUID(),
+      saleId,
+      customerId,
+      amount: Number(amount),
+      date: getLocalDateString(),
+      timestamp: Date.now()
+    };
+    
+    const customers = db.getCustomers();
+    const updated = customers.map(c => 
+      c.id === customerId 
+        ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(amount)) } 
+        : c
+    );
+    
+    localStorage.setItem(STORAGE_KEYS.DEBT_PAYMENTS, JSON.stringify([newDebtPayment, ...debtPayments]));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
     db.notify();
   },
@@ -313,6 +403,15 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify([newExpense, ...expenses]));
     db.notify();
     return newExpense;
+  },
+
+  updateExpense: (id: string, updates: Partial<Omit<Expense, 'id' | 'timestamp'>>) => {
+    const expenses = db.getExpenses();
+    const updatedExpenses = expenses.map(e => 
+      e.id === id ? { ...e, ...updates } : e
+    );
+    localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(updatedExpenses));
+    db.notify();
   },
 
   deleteExpense: (id: string) => {

@@ -57,12 +57,55 @@ export default function ReportsPage() {
     }
   }, [loadSales, selectedDate])
 
+  const getDebtStatus = (sale: Sale) => {
+    if (sale.debtAmount <= 0) return null;
+    
+    const debtPayments = db.getDebtPayments();
+    const paidAmount = debtPayments
+      .filter(dp => dp.saleId === sale.id)
+      .reduce((sum, dp) => sum + Number(dp.amount), 0);
+    
+    const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
+    
+    return {
+      originalDebt: Number(sale.debtAmount),
+      paidAmount,
+      remainingDebt,
+      isPaid: remainingDebt === 0
+    };
+  };
+
   const totalAmount = sales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0)
-  const drawerAmount = sales.reduce((sum, s) => {
-    const total = Number(s.totalPrice) || 0
-    const debt = Number((s as any).debtAmount) || 0
-    return sum + (total - debt)
-  }, 0)
+  
+  const drawerAmount = (() => {
+    const dateToCheck = selectedDate || getLocalDateString();
+    const debtPayments = db.getDebtPayments();
+    
+    return sales.reduce((sum, s) => {
+      const total = Number(s.totalPrice) || 0;
+      const debtStatus = getDebtStatus(s);
+      
+      if (!debtStatus) {
+        // لا يوجد دين، إضافة السعر الكامل
+        return sum + total;
+      }
+      
+      // السعر الكامل - الدين المتبقي = المبلغ الفعلي في الدرج
+      return sum + (total - debtStatus.remainingDebt);
+    }, 0);
+  })();
+
+  const debtsSummary = db.getDayDebtsSummary(selectedDate || getLocalDateString())
+
+  const getTodayExpenses = () => {
+    const dateToCheck = selectedDate || getLocalDateString()
+    const allExpenses = db.getExpenses()
+    return allExpenses
+      .filter(e => e.date === dateToCheck)
+      .reduce((sum, e) => sum + e.amount, 0)
+  }
+
+  const todayExpenses = getTodayExpenses()
 
   const confirmReturn = () => {
     if (!saleToReturn) return;
@@ -93,6 +136,18 @@ export default function ReportsPage() {
             }}
           />
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+        <Card className="border-none shadow-md bg-card">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-red-700 dark:text-red-400">مصاريف اليوم</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-700 dark:text-red-400">${todayExpenses.toFixed(2)}</div>
+            <p className="text-xs text-red-600/80 dark:text-red-400/80">إجمالي المصاريف</p>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="space-y-6">
@@ -145,13 +200,33 @@ export default function ReportsPage() {
                       </TableCell>
                       <TableCell className="font-semibold">${sale.totalPrice.toFixed(2)}</TableCell>
                       <TableCell>
-                        {sale.debtAmount > 0 ? (
-                          <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
-                            ${sale.debtAmount.toFixed(2)}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
+                        {(() => {
+                          const debtStatus = getDebtStatus(sale);
+                          if (!debtStatus) {
+                            return <span className="text-xs text-muted-foreground">-</span>;
+                          }
+                          
+                          if (debtStatus.isPaid) {
+                            return (
+                              <Badge className="bg-green-600 hover:bg-green-700 text-white">
+                                تم الدفع ✓
+                              </Badge>
+                            );
+                          }
+                          
+                          return (
+                            <div className="space-y-1">
+                              <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
+                                ${debtStatus.remainingDebt.toFixed(2)}
+                              </Badge>
+                              {debtStatus.paidAmount > 0 && (
+                                <div className="text-[10px] text-green-600">
+                                  دُفع: ${debtStatus.paidAmount.toFixed(2)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button 
