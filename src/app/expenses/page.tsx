@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { db, Expense, DB_UPDATE_EVENT, getLocalDateString } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Receipt, Trash2, Calendar } from "lucide-react"
+import { Plus, Search, Receipt, Trash2, Calendar, Edit2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -31,6 +31,7 @@ export default function ExpensesPage() {
   const [search, setSearch] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null)
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
   const [formData, setFormData] = useState({ description: "", amount: "", category: "" })
 
   const loadExpenses = useCallback(() => {
@@ -53,17 +54,37 @@ export default function ExpensesPage() {
       return
     }
 
-    db.addExpense({
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      category: formData.category,
-      date: getLocalDateString()
-    })
+    if (editingExpense) {
+      db.updateExpense(editingExpense.id, {
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+      })
+      toast({ title: t.success, description: "Expense updated successfully." })
+    } else {
+      db.addExpense({
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        category: formData.category,
+        date: getLocalDateString()
+      })
+      toast({ title: t.success, description: "Expense added successfully." })
+    }
 
-    toast({ title: t.success, description: "Expense added successfully." })
     loadExpenses()
     setIsModalOpen(false)
+    resetForm()
+  }
+
+  const resetForm = () => {
     setFormData({ description: "", amount: "", category: "" })
+    setEditingExpense(null)
+  }
+
+  const openEdit = (expense: Expense) => {
+    setEditingExpense(expense)
+    setFormData({ description: expense.description, amount: expense.amount.toString(), category: expense.category })
+    setIsModalOpen(true)
   }
 
   const handleDelete = () => {
@@ -130,7 +151,7 @@ export default function ExpensesPage() {
           <h1 className="text-3xl font-headline font-bold text-primary">{t.expenses}</h1>
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
-        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <Dialog open={isModalOpen} onOpenChange={(open) => { setIsModalOpen(open); if (!open) resetForm() }}>
           <DialogTrigger asChild>
             <Button className="bg-red-600 hover:bg-red-700 text-white">
               <Plus className="mr-2 h-4 w-4" /> {t.addExpense}
@@ -138,7 +159,7 @@ export default function ExpensesPage() {
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{t.addExpense}</DialogTitle>
+              <DialogTitle>{editingExpense ? "تعديل المصروف" : t.addExpense}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-6 py-4">
               <div className="grid gap-2">
@@ -258,7 +279,10 @@ export default function ExpensesPage() {
                       <span className="opacity-90 text-[10px]">{formatTime(expense.timestamp)}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell className="text-center space-x-2">
+                    <Button variant="ghost" size="icon" onClick={() => openEdit(expense)}>
+                      <Edit2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => setExpenseToDelete(expense.id)}>
                       <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </Button>

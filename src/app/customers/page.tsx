@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from "react"
 import { db, Customer, DB_UPDATE_EVENT } from "@/lib/db"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
-import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2, Wallet, Star } from "lucide-react"
+import { Plus, Search, Phone, User, DollarSign, Edit2, Trash2, Wallet, Star, Eye, ChevronDown } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,10 +33,13 @@ export default function CustomersPage() {
   const [search, setSearch] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPayModalOpen, setIsPayModalOpen] = useState(false)
+  const [isDebtDetailsOpen, setIsDebtDetailsOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [payAmount, setPayAmount] = useState("")
+  const [selectedDebtSaleId, setSelectedDebtSaleId] = useState<string | null>(null)
+  const [debtPayAmount, setDebtPayAmount] = useState("")
   const [formData, setFormData] = useState({ name: "", phone: "", type: "regular" as "regular" | "special" })
   const { toast } = useToast()
 
@@ -95,6 +99,18 @@ export default function CustomersPage() {
     setSelectedCustomer(null)
   }
 
+  const handlePaySingleDebt = () => {
+    if (!selectedCustomer || !selectedDebtSaleId || !debtPayAmount) return
+    const amount = parseFloat(debtPayAmount)
+    if (isNaN(amount) || amount <= 0) return
+
+    db.payDebtForSale(selectedDebtSaleId, selectedCustomer.id, amount)
+    toast({ title: t.success, description: "Debt payment recorded successfully." })
+    loadCustomers()
+    setDebtPayAmount("")
+    setSelectedDebtSaleId(null)
+  }
+
   const resetForm = () => {
     setFormData({ name: "", phone: "", type: "regular" })
     setEditingCustomer(null)
@@ -104,6 +120,11 @@ export default function CustomersPage() {
     setEditingCustomer(customer)
     setFormData({ name: customer.name, phone: customer.phone, type: customer.type || "regular" })
     setIsModalOpen(true)
+  }
+
+  const openDebtDetails = (customer: Customer) => {
+    setSelectedCustomer(customer)
+    setIsDebtDetailsOpen(true)
   }
 
   const filteredCustomers = customers.filter(c => 
@@ -116,6 +137,9 @@ export default function CustomersPage() {
   const currentTotalDebt = Number(selectedCustomer?.totalDebt) || 0;
   const currentPayAmount = parseFloat(payAmount) || 0;
   const remainingDebtAmount = Math.max(0, currentTotalDebt - currentPayAmount);
+
+  const unpaidDebts = selectedCustomer ? db.getUnpaidDebts(selectedCustomer.id) : [];
+  const totalUnpaidDebt = unpaidDebts.reduce((sum, d) => sum + Number(d.remainingDebt), 0);
 
   return (
     <div className="p-8 space-y-8">
@@ -253,18 +277,17 @@ export default function CustomersPage() {
                       <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </Button>
                     {customer.totalDebt > 0 && (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="bg-green-50 text-green-700 hover:bg-green-100 border-green-200"
-                        onClick={() => {
-                          setSelectedCustomer(customer)
-                          setIsPayModalOpen(true)
-                        }}
-                      >
-                        <Wallet className="h-4 w-4 mr-2" />
-                        {t.payDebt}
-                      </Button>
+                      <>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
+                          onClick={() => openDebtDetails(customer)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          {t.debtDetails}
+                        </Button>
+                      </>
                     )}
                   </TableCell>
                 </TableRow>
@@ -279,6 +302,120 @@ export default function CustomersPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Dialog open={isDebtDetailsOpen} onOpenChange={setIsDebtDetailsOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t.debtDetails} - {selectedCustomer?.name}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {unpaidDebts.length > 0 ? (
+              <>
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg">
+                  <div className="grid gap-1">
+                    <Label className="text-xs text-muted-foreground uppercase">إجمالي الديون</Label>
+                    <div className="text-xl font-bold text-red-600">
+                      ${totalUnpaidDebt.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="h-10 w-px bg-border mx-4" />
+                  <div className="grid gap-1 text-right">
+                    <Label className="text-xs text-muted-foreground uppercase">عدد الديون</Label>
+                    <div className="text-xl font-bold text-orange-600">
+                      {unpaidDebts.length}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {unpaidDebts.map((debt) => (
+                    <Collapsible key={debt.id} className="border rounded-lg overflow-hidden">
+                      <CollapsibleTrigger asChild>
+                        <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex items-center gap-4 flex-1 text-left">
+                            <div className="flex-1">
+                              <h4 className="font-bold text-primary">{debt.productName}</h4>
+                              <p className="text-sm text-muted-foreground">{debt.date}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-red-600">${debt.remainingDebt.toFixed(2)}</p>
+                              {debt.paidAmount > 0 && (
+                                <p className="text-xs text-green-600">تم دفع: ${debt.paidAmount.toFixed(2)}</p>
+                              )}
+                            </div>
+                          </div>
+                          <ChevronDown className="h-4 w-4 ml-2 transition-transform" />
+                        </button>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="border-t px-4 py-3 bg-muted/20 space-y-3">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <Label className="text-muted-foreground">الكمية</Label>
+                            <p className="font-bold">{debt.quantitySold}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">السعر للوحدة</Label>
+                            <p className="font-bold">${debt.sellingPriceAtSale.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">الإجمالي</Label>
+                            <p className="font-bold">${debt.debtAmount.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <Label className="text-muted-foreground">المدفوع</Label>
+                            <p className="font-bold text-green-600">${debt.paidAmount.toFixed(2)}</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`payAmount-${debt.id}`} className="font-bold">تسديد جزء من الدين</Label>
+                          <div className="flex gap-2">
+                            <div className="relative flex-1">
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input 
+                                id={`payAmount-${debt.id}`}
+                                type="number"
+                                className="pl-9"
+                                placeholder={`0.00 (الحد الأقصى: ${debt.remainingDebt.toFixed(2)})`}
+                                value={selectedDebtSaleId === debt.id ? debtPayAmount : ""}
+                                onChange={(e) => {
+                                  setSelectedDebtSaleId(debt.id)
+                                  setDebtPayAmount(e.target.value)
+                                }}
+                              />
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => {
+                                setSelectedDebtSaleId(debt.id)
+                                handlePaySingleDebt()
+                              }}
+                              disabled={selectedDebtSaleId !== debt.id || !debtPayAmount}
+                            >
+                              دفع
+                            </Button>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">لا توجد ديون قيد الانتظار</p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDebtDetailsOpen(false)}>إغلاق</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isPayModalOpen} onOpenChange={setIsPayModalOpen}>
         <DialogContent>
