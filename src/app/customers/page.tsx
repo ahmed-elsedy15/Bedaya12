@@ -140,6 +140,9 @@ export default function CustomersPage() {
 
   const unpaidDebts = selectedCustomer ? db.getUnpaidDebts(selectedCustomer.id) : [];
   const totalUnpaidDebt = unpaidDebts.reduce((sum, d) => sum + Number(d.remainingDebt), 0);
+  const monthlyDebts = selectedCustomer ? db.getMonthlyDebts(selectedCustomer.id) : 0;
+  const paymentHistory = selectedCustomer ? db.getCustomerPaymentHistory(selectedCustomer.id) : [];
+  const allDebtHistory = selectedCustomer ? db.getCustomerDebtHistory(selectedCustomer.id) : [];
 
   return (
     <div className="p-8 space-y-8">
@@ -233,6 +236,7 @@ export default function CustomersPage() {
               <TableHead>{t.customerName}</TableHead>
               <TableHead>{t.customerType}</TableHead>
               <TableHead>{t.phone}</TableHead>
+              {/* <TableHead>الديون هذا الشهر</TableHead> */}
               <TableHead>{t.totalDebt}</TableHead>
               <TableHead className={t.lang === 'ar' ? 'text-left' : 'text-right'}>{t.actions}</TableHead>
             </TableRow>
@@ -264,6 +268,11 @@ export default function CustomersPage() {
                       {customer.phone || "-"}
                     </div>
                   </TableCell>
+                  {/* <TableCell>
+                    <span className={`font-bold ${db.getMonthlyDebts(customer.id) > 0 ? 'text-orange-600' : 'text-slate-600'}`}>
+                      ${(db.getMonthlyDebts(customer.id) || 0).toFixed(2)}
+                    </span>
+                  </TableCell> */}
                   <TableCell>
                     <span className={`font-bold ${customer.totalDebt > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600'}`}>
                       ${(Number(customer.totalDebt) || 0).toFixed(2)}
@@ -403,10 +412,117 @@ export default function CustomersPage() {
                     </Collapsible>
                   ))}
                 </div>
+
+                <div className="mt-6 pt-6 border-t space-y-3">
+                  <h4 className="font-bold text-sm flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-green-600" />
+                    سجل الدفعات المسددة
+                  </h4>
+                  {paymentHistory.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {paymentHistory.map((payment) => (
+                        <div key={payment.id} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm text-slate-700 dark:text-slate-200">{payment.productName}</p>
+                            <p className="text-xs text-muted-foreground">التاريخ: {payment.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">+${payment.amount.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-2">لم يتم تسديد أي مبالغ بعد</p>
+                  )}
+                </div>
               </>
+            ) : allDebtHistory.length > 0 ? (
+              // لا توجد ديون متبقية لكن هناك ديون سابقة
+              <div className="space-y-4">
+                <div className="flex items-center justify-center p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                  <div className="text-center">
+                    <p className="font-bold text-green-700 dark:text-green-400 mb-1">✓ لا توجد ديون متبقية</p>
+                    <p className="text-sm text-muted-foreground">جميع الديون تم تسديدها بنجاح</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h4 className="font-bold text-sm flex items-center gap-2">
+                    <History className="h-4 w-4 text-slate-600" />
+                    سجل الديون السابقة (مسددة)
+                  </h4>
+                  <div className="space-y-3">
+                    {allDebtHistory.map((debt) => (
+                      <Collapsible key={debt.id} className="border rounded-lg overflow-hidden">
+                        <CollapsibleTrigger asChild>
+                          <button className="flex items-center justify-between w-full p-4 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-4 flex-1 text-left">
+                              <div className="flex-1">
+                                <h4 className="font-bold text-primary">{debt.productName}</h4>
+                                <p className="text-sm text-muted-foreground">{debt.date}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-bold text-green-600">✓ مسدد</p>
+                                <p className="text-sm font-semibold">${debt.debtAmount.toFixed(2)}</p>
+                              </div>
+                            </div>
+                            <ChevronDown className="h-4 w-4 ml-2 transition-transform" />
+                          </button>
+                        </CollapsibleTrigger>
+                        
+                        <CollapsibleContent className="border-t px-4 py-3 bg-muted/20 space-y-3">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <Label className="text-muted-foreground">الكمية</Label>
+                              <p className="font-bold">{debt.quantitySold}</p>
+                            </div>
+                            <div>
+                              <Label className="text-muted-foreground">السعر للوحدة</Label>
+                              <p className="font-bold">${debt.sellingPriceAtSale.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <Label className="text-muted-foreground">الإجمالي</Label>
+                              <p className="font-bold">${debt.debtAmount.toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <Label className="text-muted-foreground">المدفوع</Label>
+                              <p className="font-bold text-green-600">${debt.paidAmount.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 pt-6 border-t">
+                  <h4 className="font-bold text-sm flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-green-600" />
+                    سجل الدفعات المسددة
+                  </h4>
+                  {paymentHistory.length > 0 ? (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {paymentHistory.map((payment) => (
+                        <div key={payment.id} className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm text-slate-700 dark:text-slate-200">{payment.productName}</p>
+                            <p className="text-xs text-muted-foreground">التاريخ: {payment.date}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-green-600">+${payment.amount.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-2">لم يتم تسجيل دفعات</p>
+                  )}
+                </div>
+              </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">لا توجد ديون قيد الانتظار</p>
+                <p className="text-muted-foreground">لا توجد ديون أو سجل للعميل</p>
               </div>
             )}
           </div>

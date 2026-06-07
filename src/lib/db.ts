@@ -212,6 +212,68 @@ export const db = {
     };
   },
 
+  getMonthlyDebts: (customerId: string, year?: number, month?: number) => {
+    const now = new Date();
+    const currentYear = year || now.getFullYear();
+    const currentMonth = month !== undefined ? month : now.getMonth() + 1;
+    
+    const sales = db.getSales();
+    
+    return sales
+      .filter(s => {
+        if (s.customerId !== customerId || s.paymentType !== 'credit') return false;
+        const saleDate = new Date(s.date + 'T00:00:00');
+        const saleYear = saleDate.getFullYear();
+        const saleMonth = saleDate.getMonth() + 1;
+        return saleYear === currentYear && saleMonth === currentMonth;
+      })
+      .reduce((sum, s) => sum + Number(s.debtAmount || 0), 0);
+  },
+
+  getCustomerPaymentHistory: (customerId: string) => {
+    const debtPayments = db.getDebtPayments();
+    const sales = db.getSales();
+    
+    return debtPayments
+      .filter(dp => dp.customerId === customerId)
+      .map(dp => {
+        const sale = sales.find(s => s.id === dp.saleId);
+        return {
+          ...dp,
+          productName: sale?.productName || 'منتج محذوف',
+          saleDate: sale?.date || dp.date,
+        };
+      })
+      .sort((a, b) => b.timestamp - a.timestamp);
+  },
+
+  getCustomerDebtHistory: (customerId: string) => {
+    const sales = db.getSales();
+    const debtPayments = db.getDebtPayments();
+    
+    // جميع الديون (المسددة والمتبقية)
+    return sales
+      .filter(s => 
+        s.customerId === customerId && 
+        s.paymentType === 'credit' && 
+        Number(s.debtAmount) > 0
+      )
+      .map(sale => {
+        const paidAmount = debtPayments
+          .filter(dp => dp.saleId === sale.id)
+          .reduce((sum, dp) => sum + Number(dp.amount), 0);
+        
+        const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
+        return {
+          ...sale,
+          paidAmount,
+          remainingDebt,
+          isPaid: remainingDebt === 0
+        };
+      })
+      .sort((a, b) => b.timestamp - a.timestamp);
+  },
+
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
     const products = db.getProducts();
     const newProduct: Product = {
@@ -371,6 +433,7 @@ export const db = {
 
     const products = db.getProducts();
     const customers = db.getCustomers();
+    const debtPayments = db.getDebtPayments();
 
     const updatedProducts = products.map(p => 
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
@@ -378,16 +441,27 @@ export const db = {
 
     let updatedCustomers = [...customers];
     if (sale.customerId && Number(sale.debtAmount) > 0) {
+      // حساب المبلغ المدفوع بالفعل على هذه الفاتورة
+      const paidAmount = debtPayments
+        .filter(dp => dp.saleId === sale.id)
+        .reduce((sum, dp) => sum + Number(dp.amount), 0);
+      
+      // الدين المتبقي = الدين الأصلي - المبلغ المدفوع
+      const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
+      
       updatedCustomers = customers.map(c => 
-        c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(sale.debtAmount)) } : c
+        c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - remainingDebt) } : c
       );
     }
 
     const updatedSales = sales.filter(s => s.id !== saleId);
+    // حذف أي دفعات مرتبطة بهذه الفاتورة عند إرجاعها
+    const updatedDebtPayments = debtPayments.filter(dp => dp.saleId !== saleId);
 
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
+    localStorage.setItem(STORAGE_KEYS.DEBT_PAYMENTS, JSON.stringify(updatedDebtPayments));
     
     db.notify();
     return true;
