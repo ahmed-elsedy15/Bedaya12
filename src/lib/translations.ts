@@ -55,6 +55,7 @@ export const translations = {
     time: "Time",
     product: "Product",
     qty: "Qty",
+    price: "Price",
     profit: "Profit",
     tips: "Financial Tips",
     tip1: "Profit = (Selling Price - Purchase Price) × Quantity.",
@@ -121,6 +122,18 @@ export const translations = {
     debtCollectedToday: "Debts Collected Today",
     drawerAmount: "Amount in Drawer (excluding debts)",
     debtDetails: "Debt Details",
+    autoLocalBackup: "Auto Local Backup",
+    enableAutoLocalBackup: "Create a backup automatically when there are changes",
+    localBackupDesc: "A backup file will be saved to your 'Downloads' folder automatically at the interval you choose.",
+    backupInterval: "Backup interval",
+    backupIntervalHint: "The app checks for changes and creates a backup when needed.",
+    backupOnExit: "Backup on close",
+    backupOnExitHint: "Create a backup when the app tab is closed or the page is exited.",
+    every15Minutes: "Every 15 minutes",
+    every30Minutes: "Every 30 minutes",
+    every60Minutes: "Every 60 minutes",
+    lastBackup: "Last backup",
+    never: "Never"
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -177,6 +190,7 @@ export const translations = {
     time: "الوقت",
     product: "المنتج",
     qty: "الكمية",
+    price: "السعر",
     profit: "الربح",
     tips: "نصائح مالية",
     tip1: "الربح = (سعر البيع - سعر الشراء) × الكمية.",
@@ -243,6 +257,18 @@ export const translations = {
     debtCollectedToday: "ديون محصلة اليوم",
     drawerAmount: "المبلغ في الدرج (بدون الديون)",
     debtDetails: "تفاصيل الديون",
+    autoLocalBackup: "نسخ احتياطي محلي تلقائي",
+    enableAutoLocalBackup: "إنشاء نسخة احتياطية تلقائياً عند وجود تغييرات",
+    localBackupDesc: "سيتم تنزيل ملف نسخة احتياطية في مجلد الـ 'Downloads' بجهازك تلقائياً وفق الفاصل الزمني الذي تختاره.",
+    backupInterval: "الفاصل الزمني للنسخ",
+    backupIntervalHint: "سيتم فحص التغييرات وإنشاء نسخة احتياطية عند الحاجة.",
+    backupOnExit: "نسخ عند الإغلاق",
+    backupOnExitHint: "إنشاء نسخة احتياطية عند إغلاق التطبيق أو التبويب.",
+    every15Minutes: "كل 15 دقيقة",
+    every30Minutes: "كل 30 دقيقة",
+    every60Minutes: "كل 60 دقيقة",
+    lastBackup: "آخر نسخة احتياطية",
+    never: "لم يتم النسخ بعد"
   }
 };
 export type Language = "en" | "ar";
