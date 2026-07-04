@@ -99,7 +99,7 @@ export default function SalesEntryPage() {
     const qty = parseInt(quantity);
     if (isNaN(qty) || qty <= 0) return;
     if (qty > selectedProduct.quantity) {
-      toast({ title: t.error, description: t.insufficientStock, variant: "destructive" });
+      toast({ title: t.error, description: "Insufficient stock", variant: "destructive" });
       return;
     }
 
@@ -172,7 +172,7 @@ export default function SalesEntryPage() {
         )
       })
 
-      toast({ title: t.saleRecorded })
+      toast({ title: t.success, description: t.success })
       setCart([])
       setSelectedCustomerId("")
       setIsNewCustomer(false)
@@ -181,7 +181,7 @@ export default function SalesEntryPage() {
       setPaidNow("0")
       loadData()
     } catch (err: any) {
-      toast({ title: t.saleFailed, description: err.message, variant: "destructive" })
+      toast({ title: t.error, description: err.message, variant: "destructive" })
     }
   }
 
@@ -193,7 +193,7 @@ export default function SalesEntryPage() {
     }
     setSaleToReturn(null);
   }
-  
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
@@ -470,8 +470,8 @@ export default function SalesEntryPage() {
                 <TableRow key={sale.id} className="text-sm">
                   <TableCell className="py-4 text-[10px] text-muted-foreground">
                     <div className="flex flex-col">
-                      <span className="whitespace-nowrap">{formatDate(sale.timestamp)}</span>
-                      <span className="font-medium opacity-80">{formatTime(sale.timestamp)}</span>
+                      <span className="whitespace-nowrap font-bold text-slate-900 dark:text-slate-100">{formatDate(sale.timestamp)}</span>
+                      <span className="font-medium opacity-80 text-[10px]">{formatTime(sale.timestamp)}</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -73,6 +73,19 @@ const STORAGE_KEYS = {
   PAYMENTS: 'salesphere_payments',
   EXPENSES: 'salesphere_expenses',
   DEBT_PAYMENTS: 'salesphere_debt_payments',
+  SYNC_SETTINGS: 'salesphere_sync_settings',
+  BACKUP_STATE: 'salesphere_backup_state',
+};
+
+const DEFAULT_SYNC_SETTINGS = {
+  localAutoBackup: false,
+  backupIntervalMinutes: 30,
+  backupOnExit: false,
+};
+
+const DEFAULT_BACKUP_STATE = {
+  lastBackupAt: null as number | null,
+  lastChangeAt: null as number | null,
 };
 
 export const DB_UPDATE_EVENT = 'salesphere-db-updated';
@@ -99,7 +112,37 @@ export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number
 };
 
 export const db = {
+  getBackupState: () => {
+    if (typeof window === 'undefined') return DEFAULT_BACKUP_STATE;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.BACKUP_STATE);
+      return stored ? { ...DEFAULT_BACKUP_STATE, ...JSON.parse(stored) } : DEFAULT_BACKUP_STATE;
+    } catch (e) {
+      return DEFAULT_BACKUP_STATE;
+    }
+  },
+
+  setBackupState: (updates: Partial<typeof DEFAULT_BACKUP_STATE>) => {
+    if (typeof window === 'undefined') return DEFAULT_BACKUP_STATE;
+    const current = db.getBackupState();
+    const next = { ...current, ...updates };
+    localStorage.setItem(STORAGE_KEYS.BACKUP_STATE, JSON.stringify(next));
+    return next;
+  },
+
+  markDataChanged: () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const state = db.getBackupState();
+      const shouldUpdate = !state.lastBackupAt || !state.lastChangeAt || state.lastChangeAt < state.lastBackupAt || state.lastChangeAt < Date.now() - 1000;
+      if (shouldUpdate) {
+        db.setBackupState({ lastChangeAt: Date.now() });
+      }
+    } catch (e) {}
+  },
+
   notify: () => {
+    db.markDataChanged();
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
       window.dispatchEvent(new Event('storage'));
@@ -164,6 +207,34 @@ export const db = {
     } catch (e) {
       return [];
     }
+  },
+
+  getAllData: () => ({
+    products: db.getProducts(),
+    sales: db.getSales(),
+    customers: db.getCustomers(),
+    payments: db.getPayments(),
+    expenses: db.getExpenses(),
+    debtPayments: db.getDebtPayments(),
+  }),
+
+  getSyncSettings: () => {
+    if (typeof window === 'undefined') return DEFAULT_SYNC_SETTINGS;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.SYNC_SETTINGS);
+      return stored ? { ...DEFAULT_SYNC_SETTINGS, ...JSON.parse(stored) } : DEFAULT_SYNC_SETTINGS;
+    } catch (e) {
+      return DEFAULT_SYNC_SETTINGS;
+    }
+  },
+
+  setSyncSettings: (updates: Partial<typeof DEFAULT_SYNC_SETTINGS>) => {
+    if (typeof window === 'undefined') return DEFAULT_SYNC_SETTINGS;
+    const current = db.getSyncSettings();
+    const next = { ...current, ...updates };
+    localStorage.setItem(STORAGE_KEYS.SYNC_SETTINGS, JSON.stringify(next));
+    db.notify();
+    return next;
   },
 
   getUnpaidDebts: (customerId: string) => {
@@ -272,6 +343,26 @@ export const db = {
         };
       })
       .sort((a, b) => b.timestamp - a.timestamp);
+  },
+
+  downloadBackup: () => {
+    if (typeof window === 'undefined') return;
+    const data = {
+      ...db.getAllData(),
+      exportDate: new Date().toISOString()
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bedaya_backup_${getLocalDateString()}_${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    db.setBackupState({ lastBackupAt: Date.now(), lastChangeAt: null });
+    window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
+    window.dispatchEvent(new Event('storage'));
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
@@ -500,6 +591,7 @@ export const db = {
     if (data.customers) localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(data.customers));
     if (data.payments) localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(data.payments));
     if (data.expenses) localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
+    if (data.debtPayments) localStorage.setItem(STORAGE_KEYS.DEBT_PAYMENTS, JSON.stringify(data.debtPayments));
     db.notify();
   }
 };

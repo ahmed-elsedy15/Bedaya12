@@ -10,6 +10,8 @@ import { DollarSign, BarChart2, Download, Upload, TrendingUp, ArrowUpRight, Shop
 import { useTranslation } from "@/context/language-context"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Dashboard() {
@@ -33,6 +35,8 @@ export default function Dashboard() {
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [enteredPin, setEnteredPin] = useState("")
   const [pinError, setPinError] = useState(false)
+  const [backupSettings, setBackupSettings] = useState({ localAutoBackup: false, backupIntervalMinutes: 30, backupOnExit: false })
+  const [backupState, setBackupState] = useState({ lastBackupAt: null as number | null, lastChangeAt: null as number | null })
   const pinInputRef = useRef<HTMLInputElement>(null)
   const DASHBOARD_PIN = "201499" // عدل هذا الرقم السري كما تريد
 
@@ -103,14 +107,64 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    loadStats()
-    window.addEventListener(DB_UPDATE_EVENT, loadStats)
-    window.addEventListener('storage', loadStats)
+    const syncDashboardState = () => {
+      loadStats()
+      setBackupSettings(db.getSyncSettings())
+      setBackupState(db.getBackupState())
+    }
+
+    syncDashboardState()
+    window.addEventListener(DB_UPDATE_EVENT, syncDashboardState)
+    window.addEventListener('storage', syncDashboardState)
     return () => {
-      window.removeEventListener(DB_UPDATE_EVENT, loadStats)
-      window.removeEventListener('storage', loadStats)
+      window.removeEventListener(DB_UPDATE_EVENT, syncDashboardState)
+      window.removeEventListener('storage', syncDashboardState)
     }
   }, [loadStats])
+
+  useEffect(() => {
+    if (!backupSettings.backupOnExit || typeof window === 'undefined') return
+
+    const handleBeforeClose = () => {
+      const state = db.getBackupState()
+      const hasUnbackedChanges = Boolean(state.lastChangeAt && (!state.lastBackupAt || state.lastChangeAt > state.lastBackupAt))
+      if (hasUnbackedChanges) {
+        db.downloadBackup()
+      }
+    }
+
+    window.addEventListener('pagehide', handleBeforeClose)
+    window.addEventListener('beforeunload', handleBeforeClose)
+    return () => {
+      window.removeEventListener('pagehide', handleBeforeClose)
+      window.removeEventListener('beforeunload', handleBeforeClose)
+    }
+  }, [backupSettings.backupOnExit])
+
+  useEffect(() => {
+    if (!backupSettings.localAutoBackup) return
+
+    const intervalMs = Math.max(60_000, Number(backupSettings.backupIntervalMinutes || 30) * 60_000)
+    const timer = window.setInterval(() => {
+      const settings = db.getSyncSettings()
+      if (!settings.localAutoBackup) return
+
+      const currentBackupState = db.getBackupState()
+      const hasPendingChanges = Boolean(
+        currentBackupState.lastChangeAt &&
+        (!currentBackupState.lastBackupAt || currentBackupState.lastChangeAt > currentBackupState.lastBackupAt)
+      )
+      const lastRelevantTime = currentBackupState.lastBackupAt ?? currentBackupState.lastChangeAt ?? 0
+      const isDue = hasPendingChanges && Date.now() - lastRelevantTime >= intervalMs
+
+      if (isDue) {
+        db.downloadBackup()
+        setBackupState(db.getBackupState())
+      }
+    }, 60_000)
+
+    return () => window.clearInterval(timer)
+  }, [backupSettings.localAutoBackup, backupSettings.backupIntervalMinutes])
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -131,10 +185,7 @@ export default function Dashboard() {
 
   const handleExport = () => {
     const data = {
-      products: db.getProducts(),
-      sales: db.getSales(),
-      customers: db.getCustomers(),
-      payments: db.getPayments(),
+      ...db.getAllData(),
       exportDate: new Date().toISOString()
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -146,6 +197,29 @@ export default function Dashboard() {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+    toast({ title: t.success, description: t.exportData })
+  }
+
+  const handleBackupToggle = (checked: boolean) => {
+    const nextSettings = db.setSyncSettings({ localAutoBackup: checked })
+    setBackupSettings(nextSettings)
+    toast({ title: t.success, description: checked ? "تم تفعيل النسخ الاحتياطي التلقائي" : "تم إيقاف النسخ الاحتياطي التلقائي" })
+  }
+
+  const handleBackupIntervalChange = (value: string) => {
+    const nextSettings = db.setSyncSettings({ backupIntervalMinutes: Number(value) })
+    setBackupSettings(nextSettings)
+  }
+
+  const handleBackupOnExitToggle = (checked: boolean) => {
+    const nextSettings = db.setSyncSettings({ backupOnExit: checked })
+    setBackupSettings(nextSettings)
+    toast({ title: t.success, description: checked ? "سيتم النسخ عند إغلاق التطبيق" : "تم إيقاف النسخ عند الإغلاق" })
+  }
+
+  const handleManualBackup = () => {
+    db.downloadBackup()
+    setBackupState(db.getBackupState())
     toast({ title: t.success, description: t.exportData })
   }
 
@@ -213,7 +287,10 @@ export default function Dashboard() {
           <p className="text-muted-foreground">{t.welcome}</p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={handleManualBackup} className="gap-2">
+            <Download className="h-4 w-4" /> نسخة احتياطية الآن
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport} className="gap-2">
             <Download className="h-4 w-4" /> {t.exportData}
           </Button>
@@ -223,6 +300,72 @@ export default function Dashboard() {
           <input type="file" ref={fileInputRef} className="hidden" accept=".json" onChange={handleImport} />
         </div>
       </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1.5fr_0.8fr]">
+        <Card className="border border-emerald-200 bg-emerald-50/90 shadow-sm dark:border-emerald-900/50 dark:bg-emerald-900/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center justify-between text-emerald-800 dark:text-emerald-300">
+              <span>{t.autoLocalBackup}</span>
+              <Download className="h-4 w-4" />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{t.enableAutoLocalBackup}</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">{t.localBackupDesc}</p>
+              </div>
+              <Switch checked={backupSettings.localAutoBackup} onCheckedChange={handleBackupToggle} />
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{t.backupInterval}</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">{t.backupIntervalHint}</p>
+              </div>
+              <Select value={String(backupSettings.backupIntervalMinutes)} onValueChange={handleBackupIntervalChange}>
+                <SelectTrigger className="w-[150px]">
+                  <SelectValue placeholder="اختر الفترة" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">{t.every15Minutes}</SelectItem>
+                  <SelectItem value="30">{t.every30Minutes}</SelectItem>
+                  <SelectItem value="60">{t.every60Minutes}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-start justify-between gap-4 rounded-lg border border-emerald-200 bg-white/70 p-3 dark:border-emerald-900/50 dark:bg-slate-900/40">
+              <div>
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">{t.backupOnExit}</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">{t.backupOnExitHint}</p>
+              </div>
+              <Switch checked={backupSettings.backupOnExit} onCheckedChange={handleBackupOnExitToggle} />
+            </div>
+            <Button variant="outline" size="sm" onClick={handleManualBackup} className="gap-2">
+              <Download className="h-4 w-4" /> {t.exportData}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-sm bg-white/80 dark:bg-slate-900/50">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">حالة النسخ الاحتياطي</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="flex items-center justify-between">
+              <span>التفعيل التلقائي</span>
+              <span className={backupSettings.localAutoBackup ? "font-semibold text-emerald-600" : "font-semibold text-slate-500"}>
+                {backupSettings.localAutoBackup ? "مفعل" : "متوقف"}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>{t.lastBackup}</span>
+              <span className="font-semibold text-slate-700 dark:text-slate-200">
+                {backupState.lastBackupAt ? new Date(backupState.lastBackupAt).toLocaleString("ar-EG", { dateStyle: "medium", timeStyle: "short" }) : t.never}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* الصف العلوي: إحصائيات اليوم */}
