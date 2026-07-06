@@ -31,7 +31,14 @@ export default function Dashboard() {
     debtIssuedToday: 0,
     debtPaidToday: 0,
   })
-  const [monthlyChartData, setMonthlyChartData] = useState<{ month: string; revenue: number; profit: number; expenses?: number }[]>([])
+  const [monthlyChartData, setMonthlyChartData] = useState<{
+    month: string;
+    revenue: number;
+    profit: number;
+    expenses?: number;
+    debtCollected?: number;
+    debtIssued?: number;
+  }[]>([])
   const [isUnlocked, setIsUnlocked] = useState(false)
   const [enteredPin, setEnteredPin] = useState("")
   const [pinError, setPinError] = useState(false)
@@ -77,16 +84,25 @@ export default function Dashboard() {
     const profitLastMonthTotal = salesLastMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
 
     const lastMonthsCount = 6
+    const allDebtPayments = db.getDebtPayments();
     const monthlyData = Array.from({ length: lastMonthsCount }, (_, index) => {
       const monthDate = new Date(today.getFullYear(), today.getMonth() - (lastMonthsCount - 1) + index, 1)
       const monthPrefix = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`
       const monthSales = allSales.filter(s => s.date?.startsWith(monthPrefix))
       const monthExpenses = allExpenses.filter(e => e.date?.startsWith(monthPrefix))
+      const monthDebtCollected = allDebtPayments
+        .filter(dp => dp.date?.startsWith(monthPrefix))
+        .reduce((sum, dp) => sum + Number(dp.amount || 0), 0)
+      const monthDebtIssued = monthSales
+        .filter(s => s.paymentType === 'credit' && Number(s.debtAmount) > 0)
+        .reduce((sum, s) => sum + Number(s.debtAmount || 0), 0)
       return {
         month: monthDate.toLocaleString("ar-EG", { month: "short", year: "numeric" }),
         revenue: monthSales.reduce((sum, s) => sum + (Number(s.totalPrice) || 0), 0),
         profit: monthSales.reduce((sum, s) => sum + (Number(s.profit) || 0), 0),
         expenses: monthExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0),
+        debtCollected: monthDebtCollected,
+        debtIssued: monthDebtIssued,
       }
     })
 
@@ -504,24 +520,32 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <div className="rounded-xl bg-white/80 dark:bg-slate-900/10 shadow-sm p-4 backdrop-blur-sm mt-10">
+      <div className="rounded-3xl bg-white/90 dark:bg-slate-900/80 shadow-2xl shadow-slate-200/60 dark:shadow-slate-950/60 p-6 backdrop-blur-sm mt-10 border border-slate-200/80 dark:border-slate-800/80">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-border">
           <div>
-            <h2 className="text-lg font-semibold">مخطط الشهور السابقة</h2>
-            <p className="text-xs text-muted-foreground">قف على العمود لعرض المبلغ.</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              <div className="inline-flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
-                <span>إيرادات</span>
-              </div>
-              <div className="inline-flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
-                <span>الربح</span>
-              </div>
-                <div className="inline-flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#f97316]" />
-                  <span>المصروفات</span>
-                </div>
+            <h2 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-slate-100">مخطط الشهور السابقة</h2>
+            <p className="mt-1 text-sm text-muted-foreground">قف على العمود أو اضغط لتعرف قيمة كل عنصر.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#2563eb]" />
+              <span>إيرادات</span>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#16a34a]" />
+              <span>الربح</span>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#f97316]" />
+              <span>المصروفات</span>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
+              <span>{t.debtIssuedMonth}</span>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-slate-50 px-3 py-1 dark:border-slate-700/80 dark:bg-slate-950/60">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#a855f7]" />
+              <span>{t.debtCollectedMonth}</span>
             </div>
           </div>
         </div>
@@ -531,55 +555,91 @@ export default function Dashboard() {
             revenue: { label: "الإيرادات", color: "#2563eb" },
             profit: { label: "الربح", color: "#16a34a" },
             expenses: { label: "المصروفات", color: "#f97316" },
+            debtIssued: { label: t.debtIssuedMonth, color: "#ef4444" },
+            debtCollected: { label: t.debtCollectedMonth, color: "#a855f7" },
           }}
-          className="mt-4 h-[380px] w-full bg-transparent"
+          className="mt-4 h-[420px] w-full bg-transparent"
           style={{ direction: "ltr" }}
         >
-          <RechartsPrimitive.BarChart data={monthlyChartData} margin={{ top: 16, right: 12, left: 0, bottom: 0 }} barGap={12} barCategoryGap="20%">
-            <RechartsPrimitive.XAxis dataKey="month" type="category" axisLine={true} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280f6" }} />
-            <RechartsPrimitive.YAxis axisLine={true} tickLine={false} tick={{ fontSize: 12, fill: "#6b7280f8" }} tickFormatter={(value) => `$${value.toLocaleString()}`} />
-            {/* <RechartsPrimitive.Tooltip cursor={false} content={<ChartTooltipContent hideLabel formatter={(value) => [`$${Number(value).toFixed(2)}`, ""]} />} /> */}
-            <RechartsPrimitive.Bar dataKey="revenue" name="الإيرادات" fill="#2563eb" radius={[8, 8, 0, 0]} barSize={75}>
+          <RechartsPrimitive.BarChart
+            data={monthlyChartData}
+            margin={{ top: 36, right: 18, left: 0, bottom: 16 }}
+            barGap={14}
+            barCategoryGap="14%"
+          >
+            <RechartsPrimitive.CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+            <RechartsPrimitive.XAxis
+              dataKey="month"
+              type="category"
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12, fill: "#64748b" }}
+              tickMargin={10}
+            />
+            <RechartsPrimitive.YAxis
+              axisLine={false}
+              tickLine={false}
+              tick={{ fontSize: 12, fill: "#64748b" }}
+              tickFormatter={(value) => `$${value.toLocaleString()}`}
+            />
+            <RechartsPrimitive.Legend
+              verticalAlign="top"
+              align="center"
+              height={36}
+              iconType="circle"
+              wrapperStyle={{ paddingBottom: 12 }}
+              content={
+                <ChartLegendContent className="justify-center flex-wrap gap-4 px-2" />
+              }
+            />
+            <RechartsPrimitive.Tooltip
+              cursor={{ fill: "rgba(15, 23, 42, 0.05)" }}
+              content={
+                <ChartTooltipContent
+                  hideLabel={false}
+                  formatter={(value) => [`$${Number(value).toFixed(2)}`, ""]}
+                />
+              }
+            />
+            <RechartsPrimitive.Bar dataKey="revenue" name="الإيرادات" fill="#2563eb" radius={[8, 8, 0, 0]} barSize={36}>
               {monthlyChartData.map((entry, index) => (
                 <RechartsPrimitive.Cell
                   key={`revenue-cell-${index}`}
                   fill={entry.revenue === 0 ? "#9ca3af" : "#2563eb"}
                 />
               ))}
-              <RechartsPrimitive.LabelList
-                dataKey="revenue"
-                position="top"
-                formatter={(value: number) => (value ? `$${Number(value).toFixed(2)}` : "")}
-                style={{ fill: "#2563eb", fontSize: 12, fontWeight: 600 }}
-              />
             </RechartsPrimitive.Bar>
-            <RechartsPrimitive.Bar dataKey="expenses" name="المصروفات" fill="#f97316" radius={[8, 8, 0, 0]} barSize={75}>
+            <RechartsPrimitive.Bar dataKey="expenses" name="المصروفات" fill="#f97316" radius={[8, 8, 0, 0]} barSize={36}>
               {monthlyChartData.map((entry, index) => (
                 <RechartsPrimitive.Cell
                   key={`expenses-cell-${index}`}
                   fill={entry.expenses === 0 ? "#9ca3af" : "#f97316"}
                 />
               ))}
-              <RechartsPrimitive.LabelList
-                dataKey="expenses"
-                position="top"
-                formatter={(value: number) => (value ? `$${Number(value).toFixed(2)}` : "")}
-                style={{ fill: "#f97316", fontSize: 12, fontWeight: 600 }}
-              />
             </RechartsPrimitive.Bar>
-            <RechartsPrimitive.Bar dataKey="profit" name="الربح" fill="#16a34a" radius={[8, 8, 0, 0]} barSize={75}>
+            <RechartsPrimitive.Bar dataKey="debtIssued" name={t.debtIssuedMonth} fill="#ef4444" radius={[8, 8, 0, 0]} barSize={36}>
+              {monthlyChartData.map((entry, index) => (
+                <RechartsPrimitive.Cell
+                  key={`debt-issued-cell-${index}`}
+                  fill={!entry.debtIssued ? "#9ca3af" : "#ef4444"}
+                />
+              ))}
+            </RechartsPrimitive.Bar>
+            <RechartsPrimitive.Bar dataKey="debtCollected" name={t.debtCollectedMonth} fill="#a855f7" radius={[8, 8, 0, 0]} barSize={36}>
+              {monthlyChartData.map((entry, index) => (
+                <RechartsPrimitive.Cell
+                  key={`debt-collected-cell-${index}`}
+                  fill={!entry.debtCollected ? "#cbd5e1" : "#a855f7"}
+                />
+              ))}
+            </RechartsPrimitive.Bar>
+            <RechartsPrimitive.Bar dataKey="profit" name="الربح" fill="#16a34a" radius={[8, 8, 0, 0]} barSize={36}>
               {monthlyChartData.map((entry, index) => (
                 <RechartsPrimitive.Cell
                   key={`profit-cell-${index}`}
                   fill={entry.profit === 0 ? "#9ca3af" : "#16a34a"}
                 />
               ))}
-              <RechartsPrimitive.LabelList
-                dataKey="profit"
-                position="top"
-                formatter={(value: number) => (value ? `$${Number(value).toFixed(2)}` : "")}
-                style={{ fill: "#16a34a", fontSize: 12, fontWeight: 600 }}
-              />
             </RechartsPrimitive.Bar>
           </RechartsPrimitive.BarChart>
         </ChartContainer>

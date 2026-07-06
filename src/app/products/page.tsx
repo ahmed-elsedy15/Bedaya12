@@ -123,6 +123,12 @@ export default function ProductsPage() {
     setIsModalOpen(true)
   }
 
+  const totalInventoryValue = products.reduce((sum, product) => {
+    const purchasePrice = Number(product.purchasePrice) || 0;
+    const quantity = Number(product.quantity) || 0;
+    return sum + purchasePrice * quantity;
+  }, 0);
+
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(search.toLowerCase())
   )
@@ -228,6 +234,13 @@ export default function ProductsPage() {
           </DialogContent>
         </Dialog>
       </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-sm dark:border-slate-800/60 dark:bg-slate-950/80">
+          <p className="text-sm text-slate-500 dark:text-slate-400">{t.totalInventoryCost}</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900 dark:text-slate-100">${totalInventoryValue.toFixed(2)}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-slate-400 dark:text-slate-500">{t.purchasePrice}</p>
+        </div>
       </div>
       <div className="relative mt-10">
           <Search className={`absolute ${lang === 'ar' ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground`} />
