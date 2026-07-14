@@ -6,6 +6,10 @@ export const translations = {
     customers: "Customers",
     expenses: "Expenses",
     salesEntry: "Sales Entry",
+    purchases: "Purchases",
+    addPurchase: "New Purchase Invoice",
+    supplier: "Supplier",
+    qtyAdded: "Qty Added",
     reports: "Daily Reports",
     management: "Management",
     mode: "Mode",
@@ -136,7 +140,8 @@ export const translations = {
     every30Minutes: "Every 30 minutes",
     every60Minutes: "Every 60 minutes",
     lastBackup: "Last backup",
-    never: "Never"
+    never: "Never",
+
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -144,6 +149,10 @@ export const translations = {
     customers: "العملاء",
     expenses: "المصروفات",
     salesEntry: "تسجيل مبيعات",
+    purchases: "فواتير المشتريات",
+    addPurchase: "فاتورة مشتريات جديدة",
+    supplier: "المورد",
+    qtyAdded: "الكمية المضافة",
     reports: "التقارير اليومية",
     management: "الإدارة",
     mode: "الوضع",

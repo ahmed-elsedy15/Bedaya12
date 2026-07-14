@@ -231,14 +231,17 @@ export default function SalesEntryPage() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
               <div className="md:col-span-9 grid gap-2">
                 <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.productName}</Label>
-                <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen}>
+                <Popover open={isProductPopoverOpen} onOpenChange={setIsProductPopoverOpen} modal={true}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-between h-12 text-start font-normal">
                       {selectedProductId ? products.find(p => p.id === selectedProductId)?.name : t.searchProducts}
                       <Search className="ml-2 h-4 w-4 opacity-50" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <PopoverContent
+                    className="w-[--radix-popover-trigger-width] p-0 shadow-lg"
+                    align="start"
+                  >
                     <div className="flex items-center border-b px-3">
                       <Search className="mr-2 h-4 w-4 opacity-50" />
                       <Input
@@ -249,18 +252,21 @@ export default function SalesEntryPage() {
                       />
                     </div>
                     <ScrollArea className="h-72">
-                      {filteredProducts.map((p) => (
-                        <div
-                          key={p.id}
-                          className="flex cursor-pointer items-center rounded-md px-3 py-3 text-sm hover:bg-primary/10"
-                          onClick={() => { setSelectedProductId(p.id); setIsProductPopoverOpen(false); setProductSearch(""); }}
-                        >
-                          <div className="flex-1">
-                            <p className="font-semibold">{p.name}</p>
-                            <Badge variant="secondary" className="text-[10px]">${(p.sellingPrice || p.price || 0).toFixed(2)}</Badge>
-                          </div>
-                        </div>
-                      ))}
+                      <div className="p-2 space-y-1">
+                        {filteredProducts.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            className="flex w-full cursor-pointer items-center rounded-md px-3 py-3 text-sm hover:bg-primary/10 transition-colors"
+                            onClick={() => { setSelectedProductId(p.id); setIsProductPopoverOpen(false); setProductSearch(""); }}
+                          >
+                            <div className="flex-1 text-start">
+                              <p className="font-semibold">{p.name}</p>
+                              <Badge variant="secondary" className="text-[10px]">${(p.sellingPrice || p.price || 0).toFixed(2)}</Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </ScrollArea>
                   </PopoverContent>
                 </Popover>
@@ -336,14 +342,17 @@ export default function SalesEntryPage() {
                 ) : (
                   <div className="grid gap-2">
                     <Label className="text-xs font-semibold text-muted-foreground uppercase">{t.searchCustomers}</Label>
-                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen}>
+                    <Popover open={isCustomerPopoverOpen} onOpenChange={setIsCustomerPopoverOpen} modal={true}>
                       <PopoverTrigger asChild>
                         <Button variant="outline" className="w-full justify-between h-12 text-start font-normal">
                           {selectedCustomerId ? customers.find(c => c.id === selectedCustomerId)?.name : t.searchCustomers}
                           <Search className="ml-2 h-4 w-4 opacity-50" />
                         </Button>
                       </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <PopoverContent
+                        className="w-[--radix-popover-trigger-width] p-0 shadow-lg"
+                        align="start"
+                      >
                         <div className="flex items-center border-b px-3">
                           <Search className="mr-2 h-4 w-4 opacity-50" />
                           <Input
@@ -354,12 +363,19 @@ export default function SalesEntryPage() {
                           />
                         </div>
                         <ScrollArea className="h-72">
-                          {filteredCustomers.map((c) => (
-                            <div key={c.id} className="p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between" onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}>
-                              <p className="text-sm">{c.name}</p>
-                              {c.type === 'special' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                            </div>
-                          ))}
+                          <div className="p-2 space-y-1">
+                            {filteredCustomers.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                className="w-full p-3 hover:bg-slate-50 cursor-pointer flex items-center justify-between rounded-md transition-colors"
+                                onClick={() => { setSelectedCustomerId(c.id); setIsCustomerPopoverOpen(false); }}
+                              >
+                                <p className="text-sm">{c.name}</p>
+                                {c.type === 'special' && <Star className="h-3 w-3 text-amber-500 fill-amber-500" />}
+                              </button>
+                            ))}
+                          </div>
                         </ScrollArea>
                       </PopoverContent>
                     </Popover>

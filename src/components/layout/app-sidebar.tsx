@@ -1,7 +1,7 @@
 
 "use client"
 
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, Store, Receipt } from "lucide-react"
+import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, Store, Receipt, Truck } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -45,6 +45,12 @@ export function AppSidebar() {
       url: "/products",
       icon: Package,
     },
+    {
+      title: t.purchases,
+      url: "/purchases",
+      icon: Truck
+    },
+
     {
       title: t.customers,
       url: "/customers",
@@ -106,9 +112,9 @@ export function AppSidebar() {
             <SidebarMenu className="gap-1 px-2">
               {items.map((item) => (
                 <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton 
-                    asChild 
-                    isActive={pathname === item.url} 
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.url}
                     tooltip={item.title}
                     className="h-11 px-4 rounded-xl transition-all duration-200"
                   >

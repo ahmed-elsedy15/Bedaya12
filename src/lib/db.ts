@@ -28,15 +28,27 @@ export interface Sale {
   purchasePriceAtSale: number;
   sellingPriceAtSale: number;
   totalPrice: number;
-  profit: number; 
+  profit: number;
   date: string;
   timestamp: number;
   customerId?: string;
   customerName?: string;
   paymentType: 'cash' | 'credit';
   discount: number;
-  debtAmount: number; 
+  debtAmount: number;
   paidAmount?: number;
+}
+
+export interface Purchase {
+  id: string;
+  productId: string;
+  productName: string;
+  quantityAdded: number;
+  purchasePrice: number;
+  sellingPrice: number;
+  date: string;
+  timestamp: number;
+  supplierName?: string;
 }
 
 export interface Payment {
@@ -69,6 +81,7 @@ export interface Expense {
 const STORAGE_KEYS = {
   PRODUCTS: 'salesphere_products',
   SALES: 'salesphere_sales',
+  PURCHASES: 'salesphere_purchases',
   CUSTOMERS: 'salesphere_customers',
   PAYMENTS: 'salesphere_payments',
   EXPENSES: 'salesphere_expenses',
@@ -106,7 +119,7 @@ export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number
   const totalPrice = Number(sale.totalPrice) || 0;
   const totalProfit = Number(sale.profit) || 0;
   if (totalPrice <= 0) return 0;
-  
+
   const profitRatio = totalProfit / totalPrice;
   return paidAmount * profitRatio;
 };
@@ -138,7 +151,7 @@ export const db = {
       if (shouldUpdate) {
         db.setBackupState({ lastChangeAt: Date.now() });
       }
-    } catch (e) {}
+    } catch (e) { }
   },
 
   notify: () => {
@@ -168,6 +181,16 @@ export const db = {
       return [];
     }
   },
+  getPurchases: (): Purchase[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const stored = localStorage.getItem(STORAGE_KEYS.PURCHASES);
+      return stored ? JSON.parse(stored) : [];
+    } catch (e) {
+      return [];
+    }
+  },
+
 
   getCustomers: (): Customer[] => {
     if (typeof window === 'undefined') return [];
@@ -212,6 +235,7 @@ export const db = {
   getAllData: () => ({
     products: db.getProducts(),
     sales: db.getSales(),
+    purchases: db.getPurchases(),
     customers: db.getCustomers(),
     payments: db.getPayments(),
     expenses: db.getExpenses(),
@@ -240,16 +264,16 @@ export const db = {
   getUnpaidDebts: (customerId: string) => {
     const sales = db.getSales();
     const debtPayments = db.getDebtPayments();
-    
-    return sales.filter(sale => 
-      sale.customerId === customerId && 
-      sale.paymentType === 'credit' && 
+
+    return sales.filter(sale =>
+      sale.customerId === customerId &&
+      sale.paymentType === 'credit' &&
       Number(sale.debtAmount) > 0
     ).map(sale => {
       const paidAmount = debtPayments
         .filter(dp => dp.saleId === sale.id)
         .reduce((sum, dp) => sum + Number(dp.amount), 0);
-      
+
       const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
       return {
         ...sale,
@@ -268,15 +292,15 @@ export const db = {
   getDayDebtsSummary: (date: string) => {
     const sales = db.getSales();
     const debtPayments = db.getDebtPayments();
-    
+
     const debtIssuedToday = sales
       .filter(s => s.date === date && s.paymentType === 'credit')
       .reduce((sum, s) => sum + Number(s.debtAmount || 0), 0);
-    
+
     const debtCollectedToday = debtPayments
       .filter(dp => dp.date === date)
       .reduce((sum, dp) => sum + Number(dp.amount), 0);
-    
+
     return {
       issuedToday: debtIssuedToday,
       collectedToday: debtCollectedToday
@@ -287,9 +311,9 @@ export const db = {
     const now = new Date();
     const currentYear = year || now.getFullYear();
     const currentMonth = month !== undefined ? month : now.getMonth() + 1;
-    
+
     const sales = db.getSales();
-    
+
     return sales
       .filter(s => {
         if (s.customerId !== customerId || s.paymentType !== 'credit') return false;
@@ -304,7 +328,7 @@ export const db = {
   getCustomerPaymentHistory: (customerId: string) => {
     const debtPayments = db.getDebtPayments();
     const sales = db.getSales();
-    
+
     return debtPayments
       .filter(dp => dp.customerId === customerId)
       .map(dp => {
@@ -321,19 +345,19 @@ export const db = {
   getCustomerDebtHistory: (customerId: string) => {
     const sales = db.getSales();
     const debtPayments = db.getDebtPayments();
-    
+
     // جميع الديون (المسددة والمتبقية)
     return sales
-      .filter(s => 
-        s.customerId === customerId && 
-        s.paymentType === 'credit' && 
+      .filter(s =>
+        s.customerId === customerId &&
+        s.paymentType === 'credit' &&
         Number(s.debtAmount) > 0
       )
       .map(sale => {
         const paidAmount = debtPayments
           .filter(dp => dp.saleId === sale.id)
           .reduce((sum, dp) => sum + Number(dp.amount), 0);
-        
+
         const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
         return {
           ...sale,
@@ -407,7 +431,7 @@ export const db = {
     return newCustomer;
   },
 
-    updateCustomer: (id: string, updates: Partial<Customer>) => {
+  updateCustomer: (id: string, updates: Partial<Customer>) => {
     const customers = db.getCustomers();
     const updated = customers.map((c) => (c.id === id ? { ...c, ...updates } : c));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
@@ -453,14 +477,14 @@ export const db = {
       date: getLocalDateString(),
       timestamp: Date.now()
     };
-    
+
     const customers = db.getCustomers();
-    const updated = customers.map(c => 
-      c.id === customerId 
-        ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(amount)) } 
+    const updated = customers.map(c =>
+      c.id === customerId
+        ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - Number(amount)) }
         : c
     );
-    
+
     localStorage.setItem(STORAGE_KEYS.DEBT_PAYMENTS, JSON.stringify([newDebtPayment, ...debtPayments]));
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updated));
     db.notify();
@@ -474,12 +498,12 @@ export const db = {
     const qty = Number(quantity);
     const dsc = Number(discount);
     const debt = Number(debtAmount);
-    
+
     const updatedProducts = products.map(p => p.id === productId ? { ...p, quantity: Number(p.quantity) - qty } : p);
 
     let customerName = "";
     const customersList = db.getCustomers();
-    
+
     if (customerId) {
       const customer = customersList.find(c => c.id === customerId);
       if (customer) {
@@ -512,9 +536,48 @@ export const db = {
     const sales = db.getSales();
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify([newSale, ...sales]));
-    
+
     db.notify();
     return newSale;
+  },
+
+  recordPurchase: (productId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierName: string = "") => {
+    const products = db.getProducts();
+    const productIndex = products.findIndex(p => p.id === productId);
+    if (productIndex === -1) throw new Error('Product not found');
+
+    const qty = Number(quantity) || 0;
+    const pPrice = Number(purchasePrice) || 0;
+    const sPrice = Number(sellingPrice) || 0;
+
+    // تحديث المنتج: زيادة الكمية وتحديث الأسعار
+    const updatedProducts = [...products];
+    updatedProducts[productIndex] = {
+      ...updatedProducts[productIndex],
+      quantity: Number(updatedProducts[productIndex].quantity) + qty,
+      purchasePrice: pPrice,
+      sellingPrice: sPrice,
+      price: sPrice
+    };
+
+    const newPurchase: Purchase = {
+      id: crypto.randomUUID(),
+      productId,
+      productName: products[productIndex].name,
+      quantityAdded: qty,
+      purchasePrice: pPrice,
+      sellingPrice: sPrice,
+      date: getLocalDateString(),
+      timestamp: Date.now(),
+      supplierName
+    };
+
+    const purchases = db.getPurchases();
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify([newPurchase, ...purchases]));
+
+    db.notify();
+    return newPurchase;
   },
 
   returnSale: (saleId: string) => {
@@ -526,7 +589,7 @@ export const db = {
     const customers = db.getCustomers();
     const debtPayments = db.getDebtPayments();
 
-    const updatedProducts = products.map(p => 
+    const updatedProducts = products.map(p =>
       p.id === sale.productId ? { ...p, quantity: Number(p.quantity) + Number(sale.quantitySold) } : p
     );
 
@@ -536,11 +599,11 @@ export const db = {
       const paidAmount = debtPayments
         .filter(dp => dp.saleId === sale.id)
         .reduce((sum, dp) => sum + Number(dp.amount), 0);
-      
+
       // الدين المتبقي = الدين الأصلي - المبلغ المدفوع
       const remainingDebt = Math.max(0, Number(sale.debtAmount) - paidAmount);
-      
-      updatedCustomers = customers.map(c => 
+
+      updatedCustomers = customers.map(c =>
         c.id === sale.customerId ? { ...c, totalDebt: Math.max(0, Number(c.totalDebt) - remainingDebt) } : c
       );
     }
@@ -553,7 +616,7 @@ export const db = {
     localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(updatedCustomers));
     localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(updatedSales));
     localStorage.setItem(STORAGE_KEYS.DEBT_PAYMENTS, JSON.stringify(updatedDebtPayments));
-    
+
     db.notify();
     return true;
   },
@@ -572,7 +635,7 @@ export const db = {
 
   updateExpense: (id: string, updates: Partial<Omit<Expense, 'id' | 'timestamp'>>) => {
     const expenses = db.getExpenses();
-    const updatedExpenses = expenses.map(e => 
+    const updatedExpenses = expenses.map(e =>
       e.id === id ? { ...e, ...updates } : e
     );
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(updatedExpenses));
@@ -588,6 +651,7 @@ export const db = {
   importAll: (data: any) => {
     if (data.products) localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(data.products));
     if (data.sales) localStorage.setItem(STORAGE_KEYS.SALES, JSON.stringify(data.sales));
+    if (data.purchases) localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(data.purchases));
     if (data.customers) localStorage.setItem(STORAGE_KEYS.CUSTOMERS, JSON.stringify(data.customers));
     if (data.payments) localStorage.setItem(STORAGE_KEYS.PAYMENTS, JSON.stringify(data.payments));
     if (data.expenses) localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(data.expenses));
