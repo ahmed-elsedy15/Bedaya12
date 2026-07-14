@@ -111,6 +111,74 @@ export const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+type BackupDirectoryHandle = {
+  name: string;
+  queryPermission: (options: { mode: 'readwrite' }) => Promise<PermissionState>;
+  getFileHandle: (name: string, options: { create: boolean }) => Promise<{
+    createWritable: () => Promise<{
+      write: (data: Blob) => Promise<void>;
+      close: () => Promise<void>;
+    }>;
+  }>;
+};
+
+const BACKUP_DIRECTORY_DB = 'bedaya-backup-directory';
+const BACKUP_DIRECTORY_STORE = 'settings';
+const BACKUP_DIRECTORY_KEY = 'auto-backup-directory';
+
+const openBackupDirectoryDb = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = indexedDB.open(BACKUP_DIRECTORY_DB, 1);
+  request.onupgradeneeded = () => request.result.createObjectStore(BACKUP_DIRECTORY_STORE);
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error);
+});
+
+const getAutoBackupDirectory = async (): Promise<BackupDirectoryHandle | null> => {
+  try {
+    const database = await openBackupDirectoryDb();
+    return await new Promise((resolve, reject) => {
+      const request = database.transaction(BACKUP_DIRECTORY_STORE, 'readonly')
+        .objectStore(BACKUP_DIRECTORY_STORE).get(BACKUP_DIRECTORY_KEY);
+      request.onsuccess = () => resolve((request.result as BackupDirectoryHandle | undefined) ?? null);
+      request.onerror = () => reject(request.error);
+    });
+  } catch {
+    return null;
+  }
+};
+
+const saveAutoBackupDirectory = async (directory: BackupDirectoryHandle) => {
+  const database = await openBackupDirectoryDb();
+  await new Promise<void>((resolve, reject) => {
+    const transaction = database.transaction(BACKUP_DIRECTORY_STORE, 'readwrite');
+    transaction.objectStore(BACKUP_DIRECTORY_STORE).put(directory, BACKUP_DIRECTORY_KEY);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+const triggerBackupDownload = (blob: Blob, filename: string) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+const saveBackupToDirectory = async (blob: Blob, filename: string) => {
+  const directory = await getAutoBackupDirectory();
+  if (!directory || await directory.queryPermission({ mode: 'readwrite' }) !== 'granted') return false;
+
+  const file = await directory.getFileHandle(filename, { create: true });
+  const writable = await file.createWritable();
+  await writable.write(blob);
+  await writable.close();
+  return true;
+};
+
 /**
  * دالة لحساب الربح المحقق من مبلغ معين تم دفعه لفاتورة.
  * الربح المحقق = المبلغ المدفوع * (إجمالي ربح الفاتورة / إجمالي سعر الفاتورة)
@@ -125,6 +193,24 @@ export const calculateRealizedProfitFromAmount = (sale: Sale, paidAmount: number
 };
 
 export const db = {
+  chooseAutoBackupDirectory: async () => {
+    if (typeof window === 'undefined' || !('showDirectoryPicker' in window)) return null;
+
+    const pickerWindow = window as Window & {
+      showDirectoryPicker: () => Promise<BackupDirectoryHandle>;
+    };
+    try {
+      const directory = await pickerWindow.showDirectoryPicker();
+      await saveAutoBackupDirectory(directory);
+      return directory.name;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return null;
+      throw error;
+    }
+  },
+
+  getAutoBackupDirectoryName: async () => (await getAutoBackupDirectory())?.name ?? null,
+
   getBackupState: () => {
     if (typeof window === 'undefined') return DEFAULT_BACKUP_STATE;
     try {
@@ -369,24 +455,51 @@ export const db = {
       .sort((a, b) => b.timestamp - a.timestamp);
   },
 
-  downloadBackup: () => {
-    if (typeof window === 'undefined') return;
+  downloadBackup: async ({ selectLocation = false, saveToAutoDirectory = false }: { selectLocation?: boolean; saveToAutoDirectory?: boolean } = {}) => {
+    if (typeof window === 'undefined') return false;
     const data = {
       ...db.getAllData(),
       exportDate: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `bedaya_backup_${getLocalDateString()}_${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = `bedaya_backup_${getLocalDateString()}_${Date.now()}.json`;
+    let savedToDirectory = false;
+    if (saveToAutoDirectory) {
+      try {
+        savedToDirectory = await saveBackupToDirectory(blob, filename);
+      } catch {
+        savedToDirectory = false;
+      }
+    }
+
+    if (!savedToDirectory && selectLocation && 'showSaveFilePicker' in window) {
+      try {
+        const pickerWindow = window as Window & {
+          showSaveFilePicker: (options: unknown) => Promise<{
+            createWritable: () => Promise<{
+              write: (data: Blob) => Promise<void>;
+              close: () => Promise<void>;
+            }>;
+          }>;
+        };
+        const handle = await pickerWindow.showSaveFilePicker({
+          suggestedName: filename,
+          types: [{ description: 'Backup file', accept: { 'application/json': ['.json'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return false;
+        triggerBackupDownload(blob, filename);
+      }
+    } else if (!savedToDirectory) {
+      triggerBackupDownload(blob, filename);
+    }
     db.setBackupState({ lastBackupAt: Date.now(), lastChangeAt: null });
     window.dispatchEvent(new CustomEvent(DB_UPDATE_EVENT));
     window.dispatchEvent(new Event('storage'));
+    return true;
   },
 
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'price'>) => {
