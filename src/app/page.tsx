@@ -44,6 +44,7 @@ export default function Dashboard() {
   const [pinError, setPinError] = useState(false)
   const [backupSettings, setBackupSettings] = useState({ localAutoBackup: false, backupIntervalMinutes: 30, backupOnExit: false })
   const [backupState, setBackupState] = useState({ lastBackupAt: null as number | null, lastChangeAt: null as number | null })
+  const [autoBackupDirectoryName, setAutoBackupDirectoryName] = useState<string | null>(null)
   const pinInputRef = useRef<HTMLInputElement>(null)
   const DASHBOARD_PIN = "201499" // عدل هذا الرقم السري كما تريد
 
@@ -51,6 +52,7 @@ export default function Dashboard() {
     const products = db.getProducts();
     const allSales = db.getSales();
     const allPayments = db.getPayments();
+    const allDebtPayments = db.getDebtPayments();
     const allExpenses = db.getExpenses();
 
     const todayStr = getLocalDateString();
@@ -71,7 +73,9 @@ export default function Dashboard() {
 
     // 2. الديون المسددة اليوم (من سجل المدفوعات الفعلي)
     const paymentsToday = allPayments.filter(p => p.date === todayStr);
-    const debtPaidToday = paymentsToday.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const debtPaymentsToday = allDebtPayments.filter(p => p.date === todayStr);
+    const debtPaidToday = [...paymentsToday, ...debtPaymentsToday]
+      .reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
 
     // 3. إحصائيات الشهر الحالي (تشمل اليوم الحالي)
     const salesMonth = allSales.filter(s => s.date && s.date.startsWith(currentMonthPrefix));
@@ -84,15 +88,14 @@ export default function Dashboard() {
     const profitLastMonthTotal = salesLastMonth.reduce((sum, s) => sum + (Number(s.profit) || 0), 0);
 
     const lastMonthsCount = 6
-    const allDebtPayments = db.getDebtPayments();
     const monthlyData = Array.from({ length: lastMonthsCount }, (_, index) => {
       const monthDate = new Date(today.getFullYear(), today.getMonth() - (lastMonthsCount - 1) + index, 1)
       const monthPrefix = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`
       const monthSales = allSales.filter(s => s.date?.startsWith(monthPrefix))
       const monthExpenses = allExpenses.filter(e => e.date?.startsWith(monthPrefix))
-      const monthDebtCollected = allDebtPayments
-        .filter(dp => dp.date?.startsWith(monthPrefix))
-        .reduce((sum, dp) => sum + Number(dp.amount || 0), 0)
+      const monthDebtCollected = [...allPayments, ...allDebtPayments]
+        .filter(payment => payment.date?.startsWith(monthPrefix))
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
       const monthDebtIssued = monthSales
         .filter(s => s.paymentType === 'credit' && Number(s.debtAmount) > 0)
         .reduce((sum, s) => sum + Number(s.debtAmount || 0), 0)
@@ -127,6 +130,7 @@ export default function Dashboard() {
       loadStats()
       setBackupSettings(db.getSyncSettings())
       setBackupState(db.getBackupState())
+      void db.getAutoBackupDirectoryName().then(setAutoBackupDirectoryName)
     }
 
     syncDashboardState()
@@ -145,7 +149,7 @@ export default function Dashboard() {
       const state = db.getBackupState()
       const hasUnbackedChanges = Boolean(state.lastChangeAt && (!state.lastBackupAt || state.lastChangeAt > state.lastBackupAt))
       if (hasUnbackedChanges) {
-        db.downloadBackup()
+        db.downloadBackup({ saveToAutoDirectory: true })
       }
     }
 
@@ -174,7 +178,7 @@ export default function Dashboard() {
       const isDue = hasPendingChanges && Date.now() - lastRelevantTime >= intervalMs
 
       if (isDue) {
-        db.downloadBackup()
+        db.downloadBackup({ saveToAutoDirectory: true })
         setBackupState(db.getBackupState())
       }
     }, 60_000)
@@ -199,20 +203,9 @@ export default function Dashboard() {
     }
   }
 
-  const handleExport = () => {
-    const data = {
-      ...db.getAllData(),
-      exportDate: new Date().toISOString()
-    }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `backup_${getLocalDateString()}.json`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+  const handleExport = async () => {
+    const saved = await db.downloadBackup({ selectLocation: true })
+    if (!saved) return
     toast({ title: t.success, description: t.exportData })
   }
 
@@ -220,6 +213,17 @@ export default function Dashboard() {
     const nextSettings = db.setSyncSettings({ localAutoBackup: checked })
     setBackupSettings(nextSettings)
     toast({ title: t.success, description: checked ? "تم تفعيل النسخ الاحتياطي التلقائي" : "تم إيقاف النسخ الاحتياطي التلقائي" })
+  }
+
+  const handleAutoBackupDirectorySelect = async () => {
+    try {
+      const directoryName = await db.chooseAutoBackupDirectory()
+      if (!directoryName) return
+      setAutoBackupDirectoryName(directoryName)
+      toast({ title: t.success, description: `سيتم حفظ النسخ التلقائية في مجلد ${directoryName}` })
+    } catch {
+      toast({ title: t.error, description: "تعذر حفظ المجلد المختار للنسخ التلقائي.", variant: "destructive" })
+    }
   }
 
   const handleBackupIntervalChange = (value: string) => {
@@ -233,8 +237,9 @@ export default function Dashboard() {
     toast({ title: t.success, description: checked ? "سيتم النسخ عند إغلاق التطبيق" : "تم إيقاف النسخ عند الإغلاق" })
   }
 
-  const handleManualBackup = () => {
-    db.downloadBackup()
+  const handleManualBackup = async () => {
+    const saved = await db.downloadBackup({ selectLocation: true })
+    if (!saved) return
     setBackupState(db.getBackupState())
     toast({ title: t.success, description: t.exportData })
   }
@@ -333,6 +338,17 @@ export default function Dashboard() {
                 <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">{t.localBackupDesc}</p>
               </div>
               <Switch checked={backupSettings.localAutoBackup} onCheckedChange={handleBackupToggle} />
+            </div>
+            <div className="flex flex-col gap-2 rounded-lg border border-emerald-200 bg-white/70 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/50 dark:bg-slate-900/40">
+              <div>
+                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">مجلد النسخ التلقائية</p>
+                <p className="text-xs text-emerald-700/80 dark:text-emerald-300/80">
+                  {autoBackupDirectoryName ? `المجلد الحالي: ${autoBackupDirectoryName}` : "لم يتم اختيار مجلد بعد"}
+                </p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={handleAutoBackupDirectorySelect}>
+                اختيار مجلد
+              </Button>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
