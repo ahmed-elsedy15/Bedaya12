@@ -49,6 +49,15 @@ export interface Purchase {
   date: string;
   timestamp: number;
   supplierName?: string;
+  items?: PurchaseItem[];
+}
+
+export interface PurchaseItem {
+  productId: string;
+  productName: string;
+  quantityAdded: number;
+  purchasePrice: number;
+  sellingPrice: number;
 }
 
 export interface Payment {
@@ -691,6 +700,161 @@ export const db = {
 
     db.notify();
     return newPurchase;
+  },
+
+  updatePurchase: (purchaseId: string, productId: string, quantity: number, purchasePrice: number, sellingPrice: number, supplierName: string = "") => {
+    const purchases = db.getPurchases();
+    const purchaseIndex = purchases.findIndex(p => p.id === purchaseId);
+    if (purchaseIndex === -1) throw new Error('Purchase invoice not found');
+
+    const qty = Number(quantity);
+    const pPrice = Number(purchasePrice);
+    const sPrice = Number(sellingPrice);
+    if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(pPrice) || pPrice < 0 || !Number.isFinite(sPrice) || sPrice < 0) {
+      throw new Error('Please enter valid invoice values');
+    }
+
+    const products = db.getProducts();
+    const oldPurchase = purchases[purchaseIndex];
+    const oldProductIndex = products.findIndex(p => p.id === oldPurchase.productId);
+    const newProductIndex = products.findIndex(p => p.id === productId);
+    if (oldProductIndex === -1 || newProductIndex === -1) throw new Error('Product not found');
+
+    const updatedProducts = [...products];
+    const oldProduct = updatedProducts[oldProductIndex];
+    if (Number(oldProduct.quantity) < Number(oldPurchase.quantityAdded)) {
+      throw new Error('Cannot edit this invoice because part of its quantity has already been sold');
+    }
+
+    if (oldPurchase.productId === productId) {
+      updatedProducts[oldProductIndex] = {
+        ...oldProduct,
+        quantity: Number(oldProduct.quantity) - Number(oldPurchase.quantityAdded) + qty,
+        purchasePrice: pPrice,
+        sellingPrice: sPrice,
+        price: sPrice,
+      };
+    } else {
+      updatedProducts[oldProductIndex] = {
+        ...oldProduct,
+        quantity: Number(oldProduct.quantity) - Number(oldPurchase.quantityAdded),
+      };
+      const newProduct = updatedProducts[newProductIndex];
+      updatedProducts[newProductIndex] = {
+        ...newProduct,
+        quantity: Number(newProduct.quantity) + qty,
+        purchasePrice: pPrice,
+        sellingPrice: sPrice,
+        price: sPrice,
+      };
+    }
+
+    const updatedPurchase: Purchase = {
+      ...oldPurchase,
+      productId,
+      productName: products[newProductIndex].name,
+      quantityAdded: qty,
+      purchasePrice: pPrice,
+      sellingPrice: sPrice,
+      supplierName,
+    };
+    const updatedPurchases = [...purchases];
+    updatedPurchases[purchaseIndex] = updatedPurchase;
+
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(updatedPurchases));
+    db.notify();
+    return updatedPurchase;
+  },
+
+  deletePurchase: (purchaseId: string) => {
+    const purchases = db.getPurchases();
+    const purchase = purchases.find(p => p.id === purchaseId);
+    if (!purchase) throw new Error('Purchase invoice not found');
+
+    const products = db.getProducts();
+    const items = purchase.items || [{ productId: purchase.productId, quantityAdded: purchase.quantityAdded }];
+    const updatedProducts = [...products];
+    for (const item of items) {
+      const productIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (productIndex === -1) throw new Error('Product not found');
+      if (Number(updatedProducts[productIndex].quantity) < Number(item.quantityAdded)) {
+        throw new Error('Cannot delete this invoice because part of its quantity has already been sold');
+      }
+      updatedProducts[productIndex] = {
+        ...updatedProducts[productIndex],
+        quantity: Number(updatedProducts[productIndex].quantity) - Number(item.quantityAdded),
+      };
+    }
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(purchases.filter(p => p.id !== purchaseId)));
+    db.notify();
+    return true;
+  },
+
+  recordPurchaseInvoice: (items: PurchaseItem[], supplierName: string = "") => {
+    if (!items.length) throw new Error('Add at least one product to the invoice');
+    const products = db.getProducts();
+    const updatedProducts = [...products];
+    const normalizedItems = items.map(item => {
+      const qty = Number(item.quantityAdded);
+      const pPrice = Number(item.purchasePrice);
+      const sPrice = Number(item.sellingPrice);
+      const productIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (productIndex === -1) throw new Error('Product not found');
+      if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(pPrice) || pPrice < 0 || !Number.isFinite(sPrice) || sPrice < 0) {
+        throw new Error('Please enter valid values for all products');
+      }
+      const product = updatedProducts[productIndex];
+      updatedProducts[productIndex] = { ...product, quantity: Number(product.quantity) + qty, purchasePrice: pPrice, sellingPrice: sPrice, price: sPrice };
+      return { productId: product.id, productName: product.name, quantityAdded: qty, purchasePrice: pPrice, sellingPrice: sPrice };
+    });
+    const timestamp = Date.now();
+    const newPurchase: Purchase = {
+      id: crypto.randomUUID(), productId: normalizedItems[0].productId, productName: normalizedItems[0].productName,
+      quantityAdded: normalizedItems.reduce((sum, item) => sum + item.quantityAdded, 0),
+      purchasePrice: normalizedItems.reduce((sum, item) => sum + item.quantityAdded * item.purchasePrice, 0),
+      sellingPrice: 0, date: getLocalDateString(), timestamp, supplierName, items: normalizedItems,
+    };
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify([newPurchase, ...db.getPurchases()]));
+    db.notify();
+    return newPurchase;
+  },
+
+  updatePurchaseInvoice: (purchaseId: string, items: PurchaseItem[], supplierName: string = "") => {
+    const purchases = db.getPurchases();
+    const purchaseIndex = purchases.findIndex(p => p.id === purchaseId);
+    if (purchaseIndex === -1) throw new Error('Purchase invoice not found');
+    if (!items.length) throw new Error('Add at least one product to the invoice');
+    if (new Set(items.map(item => item.productId)).size !== items.length) throw new Error('Duplicate products are not allowed');
+
+    const previous = purchases[purchaseIndex];
+    const previousItems = previous.items || [{ productId: previous.productId, productName: previous.productName, quantityAdded: previous.quantityAdded, purchasePrice: previous.purchasePrice, sellingPrice: previous.sellingPrice }];
+    const products = db.getProducts();
+    const updatedProducts = [...products];
+    for (const item of previousItems) {
+      const index = updatedProducts.findIndex(p => p.id === item.productId);
+      if (index === -1) throw new Error('Product not found');
+      if (Number(updatedProducts[index].quantity) < Number(item.quantityAdded)) throw new Error('Cannot edit this invoice because part of its quantity has already been sold');
+      updatedProducts[index] = { ...updatedProducts[index], quantity: Number(updatedProducts[index].quantity) - Number(item.quantityAdded) };
+    }
+    const normalizedItems = items.map(item => {
+      const qty = Number(item.quantityAdded), pPrice = Number(item.purchasePrice), sPrice = Number(item.sellingPrice);
+      const index = updatedProducts.findIndex(p => p.id === item.productId);
+      if (index === -1) throw new Error('Product not found');
+      if (!Number.isFinite(qty) || qty <= 0 || !Number.isFinite(pPrice) || pPrice < 0 || !Number.isFinite(sPrice) || sPrice < 0) throw new Error('Please enter valid values for all products');
+      const product = updatedProducts[index];
+      updatedProducts[index] = { ...product, quantity: Number(product.quantity) + qty, purchasePrice: pPrice, sellingPrice: sPrice, price: sPrice };
+      return { productId: product.id, productName: product.name, quantityAdded: qty, purchasePrice: pPrice, sellingPrice: sPrice };
+    });
+    const updatedPurchase: Purchase = { ...previous, productId: normalizedItems[0].productId, productName: normalizedItems[0].productName, quantityAdded: normalizedItems.reduce((sum, item) => sum + item.quantityAdded, 0), purchasePrice: normalizedItems.reduce((sum, item) => sum + item.quantityAdded * item.purchasePrice, 0), sellingPrice: 0, supplierName, items: normalizedItems };
+    const updatedPurchases = [...purchases];
+    updatedPurchases[purchaseIndex] = updatedPurchase;
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
+    localStorage.setItem(STORAGE_KEYS.PURCHASES, JSON.stringify(updatedPurchases));
+    db.notify();
+    return updatedPurchase;
   },
 
   returnSale: (saleId: string) => {
