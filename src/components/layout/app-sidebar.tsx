@@ -1,7 +1,19 @@
+"use client";
 
-"use client"
-
-import { LayoutDashboard, Package, ShoppingCart, BarChart3, Sun, Moon, Languages, Users, Store, Receipt, Truck } from "lucide-react"
+import {
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  BarChart3,
+  Sun,
+  Moon,
+  Languages,
+  Users,
+  Store,
+  Receipt,
+  Truck,
+  AlertTriangle,
+} from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -15,24 +27,24 @@ import {
   SidebarMenuItem,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
-import { useTranslation } from "@/context/language-context"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/sidebar";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+import { useTranslation } from "@/context/language-context";
+import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
-  const pathname = usePathname()
-  const { theme, setTheme } = useTheme()
-  const { lang, setLang, t, dir } = useTranslation()
-  const [mounted, setMounted] = useState(false)
-  const { state } = useSidebar()
+  const pathname = usePathname();
+  const { theme, setTheme } = useTheme();
+  const { lang, setLang, t, dir } = useTranslation();
+  const [mounted, setMounted] = useState(false);
+  const { state } = useSidebar();
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   const items = [
     {
@@ -45,10 +57,13 @@ export function AppSidebar() {
       url: "/products",
       icon: Package,
     },
+    { title: t.inventoryAlerts, 
+      url: "/inventory-alerts", 
+      icon: AlertTriangle },
     {
       title: t.purchases,
       url: "/purchases",
-      icon: Truck
+      icon: Truck,
     },
 
     {
@@ -71,20 +86,24 @@ export function AppSidebar() {
       url: "/expenses",
       icon: Receipt,
     },
-  ]
+  ];
 
-  if (!mounted) return null
+  if (!mounted) return null;
 
   return (
     <Sidebar collapsible="icon" side={dir === "rtl" ? "right" : "left"}>
-      <SidebarHeader className={cn(
-        "h-24 flex items-center border-b bg-primary/5 transition-all duration-300",
-        state === "collapsed" ? "px-0 justify-center" : "px-4"
-      )}>
-        <div className={cn(
-          "flex items-center w-full",
-          state === "collapsed" ? "justify-center" : "gap-4"
-        )}>
+      <SidebarHeader
+        className={cn(
+          "h-24 flex items-center border-b bg-primary/5 transition-all duration-300",
+          state === "collapsed" ? "px-0 justify-center" : "px-4",
+        )}
+      >
+        <div
+          className={cn(
+            "flex items-center w-full",
+            state === "collapsed" ? "justify-center" : "gap-4",
+          )}
+        >
           <div className="min-w-12 w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground font-bold shadow-xl shadow-primary/20 shrink-0 transform transition-transform duration-300 hover:rotate-6">
             <Store className="h-7 w-7" />
           </div>
@@ -102,10 +121,12 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="py-4">
         <SidebarGroup>
-          <SidebarGroupLabel className={cn(
-            "px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2",
-            state === "collapsed" && "sr-only"
-          )}>
+          <SidebarGroupLabel
+            className={cn(
+              "px-4 text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mb-2",
+              state === "collapsed" && "sr-only",
+            )}
+          >
             {t.management}
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -119,10 +140,14 @@ export function AppSidebar() {
                     className="h-11 px-4 rounded-xl transition-all duration-200"
                   >
                     <Link href={item.url} className="flex items-center gap-3">
-                      <item.icon className={cn(
-                        "h-5 w-5 transition-colors",
-                        pathname === item.url ? "text-primary" : "text-muted-foreground"
-                      )} />
+                      <item.icon
+                        className={cn(
+                          "h-5 w-5 transition-colors",
+                          pathname === item.url
+                            ? "text-primary"
+                            : "text-muted-foreground",
+                        )}
+                      />
                       <span className="font-medium text-sm">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -141,7 +166,9 @@ export function AppSidebar() {
               tooltip={t.language}
             >
               <Languages className="h-4 w-4 text-primary" />
-              <span className="text-xs font-semibold">{lang === "en" ? "العربية" : "English"}</span>
+              <span className="text-xs font-semibold">
+                {lang === "en" ? "العربية" : "English"}
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
@@ -155,12 +182,14 @@ export function AppSidebar() {
               ) : (
                 <Moon className="h-4 w-4 text-indigo-600" />
               )}
-              <span className="text-xs font-semibold">{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
+              <span className="text-xs font-semibold">
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
