@@ -1,4 +1,3 @@
-
 export const translations = {
   en: {
     dashboard: "Dashboard",
@@ -104,7 +103,8 @@ export const translations = {
     topDebtors: "Top Debtors",
     storageStatus: "Storage Status",
     localOnly: "Local Storage (On this device)",
-    storageWarning: "Data is saved only in this browser. Clearing browser data will delete it.",
+    storageWarning:
+      "Data is saved only in this browser. Clearing browser data will delete it.",
     exportData: "Export Backup",
     importData: "Import Backup",
     importSuccess: "Data imported successfully!",
@@ -112,7 +112,8 @@ export const translations = {
     discount: "Discount",
     finalTotal: "Final Total",
     returnSale: "Return Sale",
-    confirmReturn: "Are you sure you want to return this sale? Items will be added back to stock.",
+    confirmReturn:
+      "Are you sure you want to return this sale? Items will be added back to stock.",
     saleReturned: "Sale returned and stock updated.",
     addToCart: "Add to Cart",
     cart: "Shopping Cart",
@@ -130,18 +131,26 @@ export const translations = {
     drawerAmount: "Amount in Drawer (excluding debts)",
     debtDetails: "Debt Details",
     autoLocalBackup: "Auto Local Backup",
-    enableAutoLocalBackup: "Create a backup automatically when there are changes",
-    localBackupDesc: "A backup file will be saved to your 'Choose it' folder automatically at the interval you choose.",
+    enableAutoLocalBackup:
+      "Create a backup automatically when there are changes",
+    localBackupDesc:
+      "A backup file will be saved to your 'Choose it' folder automatically at the interval you choose.",
     backupInterval: "Backup interval",
-    backupIntervalHint: "The app checks for changes and creates a backup when needed.",
+    backupIntervalHint:
+      "The app checks for changes and creates a backup when needed.",
     backupOnExit: "Backup on close",
-    backupOnExitHint: "Create a backup when the app tab is closed or the page is exited.",
+    backupOnExitHint:
+      "Create a backup when the app tab is closed or the page is exited.",
     every15Minutes: "Every 15 minutes",
     every30Minutes: "Every 30 minutes",
     every60Minutes: "Every 60 minutes",
     lastBackup: "Last backup",
     never: "Never",
-
+    inventoryAlerts: "Inventory Alerts",
+    lowStock: "Low Stock",
+    criticalStock: "Critical Stock",
+    restock: "Restock Now",
+    allGood: "All products are in good stock levels.",
   },
   ar: {
     dashboard: "لوحة التحكم",
@@ -247,7 +256,8 @@ export const translations = {
     topDebtors: "كبار المدينين",
     storageStatus: "حالة التخزين",
     localOnly: "تخزين محلي (على هذا الجهاز)",
-    storageWarning: "البيانات محفوظة فقط في هذا المتصفح. مسح بيانات المتصفح سيؤدي لحذفها.",
+    storageWarning:
+      "البيانات محفوظة فقط في هذا المتصفح. مسح بيانات المتصفح سيؤدي لحذفها.",
     exportData: "تصدير نسخة احتياطية",
     importData: "استيراد نسخة احتياطية",
     importSuccess: "تم استعادة البيانات بنجاح!",
@@ -255,7 +265,8 @@ export const translations = {
     discount: "الخصم",
     finalTotal: "الإجمالي النهائي",
     returnSale: "إرجاع (مرتجع)",
-    confirmReturn: "هل أنت متأكد من إرجاع هذه العملية؟ سيتم إعادة الكمية للمخزون.",
+    confirmReturn:
+      "هل أنت متأكد من إرجاع هذه العملية؟ سيتم إعادة الكمية للمخزون.",
     saleReturned: "تم إرجاع العملية وتحديث المخزون.",
     addToCart: "إضافة للسلة",
     cart: "سلة المشتريات",
@@ -274,7 +285,8 @@ export const translations = {
     debtDetails: "تفاصيل الديون",
     autoLocalBackup: "نسخ احتياطي محلي تلقائي",
     enableAutoLocalBackup: "إنشاء نسخة احتياطية تلقائياً عند وجود تغييرات",
-    localBackupDesc: "سيتم تنزيل ملف نسخة احتياطية في مجلد الـ 'تختاره' بجهازك تلقائياً وفق الفاصل الزمني الذي تختاره.",
+    localBackupDesc:
+      "سيتم تنزيل ملف نسخة احتياطية في مجلد الـ 'تختاره' بجهازك تلقائياً وفق الفاصل الزمني الذي تختاره.",
     backupInterval: "الفاصل الزمني للنسخ",
     backupIntervalHint: "سيتم فحص التغييرات وإنشاء نسخة احتياطية عند الحاجة.",
     backupOnExit: "نسخ عند الإغلاق",
@@ -283,7 +295,12 @@ export const translations = {
     every30Minutes: "كل 30 دقيقة",
     every60Minutes: "كل 60 دقيقة",
     lastBackup: "آخر نسخة احتياطية",
-    never: "لم يتم النسخ بعد"
-  }
+    never: "لم يتم النسخ بعد",
+    inventoryAlerts: "تنبيهات المخزون",
+    lowStock: "مخزون منخفض",
+    criticalStock: "مخزون حرج",
+    restock: "طلب بضاعة الآن",
+    allGood: "جميع المنتجات متوفرة بكميات جيدة.",
+  },
 };
 export type Language = "en" | "ar";
